@@ -1,0 +1,1745 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1" />
+<title>StudyTrack</title>
+<style>
+  /* ========================================================================
+     TOKENS
+     ===================================================================== */
+  :root{
+    --c-void:#05060d;
+    --c-ink:#0c0d1c;
+    --c-ink-2:#12142a;
+    --c-line:#1d1f36;
+    --c-line-soft:#15172a;
+    --c-fog:#5b5d78;
+    --c-mist:#8d8fab;
+    --c-paper:#f1f2f8;
+    --c-rose:#ff5d6c;
+    --c-rose-soft:rgba(255,93,108,.14);
+    --c-mint:#3ddc97;
+
+    --accent-idle:#4f5fe6;
+    --accent-idle-soft:rgba(79,95,230,.18);
+    --accent-active:#ffb454;
+    --accent-active-soft:rgba(255,180,84,.18);
+
+    --accent-current: var(--accent-idle);
+    --accent-current-soft: var(--accent-idle-soft);
+
+    --r-lg:20px;
+    --r-md:14px;
+    --r-sm:9px;
+    --ease: cubic-bezier(.16,.84,.44,1);
+
+    --font-ui: -apple-system, BlinkMacSystemFont, "Segoe UI", "Helvetica Neue", Arial, sans-serif;
+    --font-mono: "SF Mono", "Cascadia Mono", "Consolas", "Roboto Mono", monospace;
+  }
+
+  [data-theme="teal"]{
+    --accent-idle:#2bbfae; --accent-idle-soft:rgba(43,191,174,.18);
+    --accent-active:#ff8a5c; --accent-active-soft:rgba(255,138,92,.18);
+  }
+  [data-theme="violet"]{
+    --accent-idle:#9163f2; --accent-idle-soft:rgba(145,99,242,.18);
+    --accent-active:#c8ec5a; --accent-active-soft:rgba(200,236,90,.18);
+  }
+  [data-theme="slate"]{
+    --accent-idle:#7e8aa6; --accent-idle-soft:rgba(126,138,166,.18);
+    --accent-active:#ff6b81; --accent-active-soft:rgba(255,107,129,.18);
+  }
+
+  body.running{ --accent-current: var(--accent-active); --accent-current-soft: var(--accent-active-soft); }
+
+  *{ box-sizing:border-box; }
+  html,body{ height:100%; }
+  body{
+    margin:0;
+    background:var(--c-void);
+    color:var(--c-paper);
+    font-family:var(--font-ui);
+    -webkit-font-smoothing:antialiased;
+    overflow:hidden;
+  }
+  h1,h2,h3,p{ margin:0; }
+  button{ font-family:inherit; cursor:pointer; }
+  input{ font-family:inherit; }
+
+  ::selection{ background:var(--accent-idle-soft); }
+
+  /* thin dark scrollbars */
+  *::-webkit-scrollbar{ width:8px; height:8px; }
+  *::-webkit-scrollbar-track{ background:transparent; }
+  *::-webkit-scrollbar-thumb{ background:var(--c-line); border-radius:8px; }
+  *::-webkit-scrollbar-thumb:hover{ background:var(--c-fog); }
+
+  :focus-visible{ outline:2px solid var(--accent-idle); outline-offset:2px; border-radius:6px; }
+
+  /* ========================================================================
+     LAYOUT
+     ===================================================================== */
+  .shell{ display:none; height:100vh; width:100vw; }
+
+  .boot-loading{
+    position:fixed; inset:0; background:var(--c-void); z-index:200;
+    display:flex; align-items:center; justify-content:center;
+  }
+  .boot-logo{
+    width:48px; height:48px; border-radius:14px;
+    background:linear-gradient(155deg, var(--accent-idle), var(--accent-active));
+    display:flex; align-items:center; justify-content:center;
+    font-family:var(--font-mono); font-weight:700; color:#06070f;
+    animation: bootPulse 1.4s ease-in-out infinite;
+  }
+  @keyframes bootPulse{ 0%,100%{ opacity:.5; transform:scale(.92); } 50%{ opacity:1; transform:scale(1); } }
+
+  .auth-screen{
+    position:fixed; inset:0; background:var(--c-void); z-index:150; padding:24px;
+    display:none; align-items:center; justify-content:center;
+  }
+  .auth-screen.open{ display:flex; }
+  .auth-card{
+    width:380px; max-width:100%; background:var(--c-ink); border:1px solid var(--c-line-soft);
+    border-radius:var(--r-lg); padding:34px; text-align:center;
+  }
+  .auth-logo{
+    width:44px; height:44px; border-radius:13px; margin:0 auto 18px;
+    background:linear-gradient(155deg, var(--accent-idle), var(--accent-active));
+    display:flex; align-items:center; justify-content:center;
+    font-family:var(--font-mono); font-weight:700; color:#06070f;
+  }
+  .auth-card h1{ font-size:19px; font-weight:600; margin-bottom:6px; }
+  .auth-card .muted{ margin-bottom:24px; }
+  .auth-card .field{ text-align:left; }
+  .auth-error{ color:var(--c-rose); font-size:12.5px; min-height:16px; margin:4px 0 14px; }
+  .auth-submit{ width:100%; padding:12px; font-size:14px; margin-top:4px; }
+  .auth-toggle{ margin-top:18px; font-size:13px; color:var(--c-mist); }
+  .auth-toggle .link-btn{ margin-left:5px; }
+
+  .rail{
+    width:76px; flex:none;
+    display:flex; flex-direction:column; align-items:center;
+    padding:22px 0;
+    background:var(--c-ink);
+    border-right:1px solid var(--c-line-soft);
+    gap:6px;
+  }
+  .rail-logo{
+    width:38px; height:38px; border-radius:11px;
+    background:linear-gradient(155deg, var(--accent-idle), var(--accent-active));
+    margin-bottom:22px;
+    display:flex; align-items:center; justify-content:center;
+    font-size:15px; font-weight:700; color:#06070f;
+    font-family:var(--font-mono);
+  }
+  .rail-btn{
+    width:46px; height:46px; border:none; background:transparent;
+    border-radius:var(--r-sm); color:var(--c-fog);
+    display:flex; align-items:center; justify-content:center;
+    transition:background .2s var(--ease), color .2s var(--ease);
+  }
+  .rail-btn svg{ width:21px; height:21px; }
+  .rail-btn:hover{ background:var(--c-ink-2); color:var(--c-mist); }
+  .rail-btn.active{ background:var(--accent-idle-soft); color:var(--accent-idle); }
+  .rail-spacer{ flex:1; }
+  .rail-pulse{
+    width:7px; height:7px; border-radius:50%;
+    background:var(--c-fog); margin-top:4px;
+    transition:background .3s var(--ease);
+  }
+  body.running .rail-pulse{
+    background:var(--accent-active);
+    box-shadow:0 0 0 0 var(--accent-active-soft);
+    animation: dotPulse 1.6s ease-in-out infinite;
+  }
+
+  .stage{ flex:1; overflow-y:auto; padding:40px 48px 64px; }
+  .view{ display:none; max-width:760px; margin:0 auto; }
+  .view.active{ display:block; animation: viewIn .32s var(--ease); }
+
+  .view-head{ display:flex; align-items:flex-end; justify-content:space-between; margin-bottom:28px; }
+  .eyebrow{
+    font-size:11px; text-transform:uppercase; letter-spacing:.14em;
+    color:var(--c-fog); font-weight:600; margin-bottom:4px;
+  }
+  .view-head h1{ font-size:26px; font-weight:600; letter-spacing:-.01em; }
+  .muted{ color:var(--c-mist); font-size:13.5px; line-height:1.6; }
+
+  /* ========================================================================
+     BUTTONS
+     ===================================================================== */
+  .icon-btn{
+    width:42px; height:42px; border-radius:50%;
+    background:var(--c-ink-2); border:1px solid var(--c-line);
+    color:var(--c-paper); display:flex; align-items:center; justify-content:center;
+    transition:transform .15s var(--ease), background .2s var(--ease), border-color .2s var(--ease);
+  }
+  .icon-btn svg{ width:18px; height:18px; }
+  .icon-btn:hover{ background:#171933; border-color:var(--accent-idle); }
+  .icon-btn:active{ transform:scale(.88); }
+  .icon-btn.small{ width:32px; height:32px; }
+  .icon-btn.small svg{ width:14px; height:14px; }
+
+  .btn-record{
+    width:120px; height:120px; border-radius:50%; border:none;
+    background:radial-gradient(circle at 32% 28%, color-mix(in srgb, var(--accent-current) 70%, white 12%), var(--accent-current));
+    color:#05060d; display:flex; flex-direction:column; align-items:center; justify-content:center;
+    gap:7px; box-shadow:0 14px 34px -10px var(--accent-current-soft), inset 0 1px 0 rgba(255,255,255,.25);
+    transition:background .55s var(--ease), box-shadow .55s var(--ease), transform .15s var(--ease);
+    font-size:15px; font-weight:600; letter-spacing:.01em;
+  }
+  .btn-record:active{ transform:scale(.94); }
+  .btn-record-dot{ width:9px; height:9px; border-radius:50%; background:#05060d; opacity:.65; }
+  body.running .btn-record-dot{
+    animation: dotPulse 1.4s ease-in-out infinite; border-radius:3px;
+  }
+
+  .btn-primary{
+    background:var(--accent-idle); color:#06070f; border:none;
+    padding:11px 20px; border-radius:var(--r-sm); font-size:14px; font-weight:600;
+    transition:filter .2s var(--ease), transform .15s var(--ease);
+  }
+  .btn-primary:hover{ filter:brightness(1.12); }
+  .btn-primary:active{ transform:scale(.97); }
+
+  .btn-secondary{
+    background:var(--c-ink-2); color:var(--c-paper); border:1px solid var(--c-line);
+    padding:10px 18px; border-radius:var(--r-sm); font-size:13.5px; font-weight:500;
+    transition:border-color .2s var(--ease), background .2s var(--ease);
+  }
+  .btn-secondary:hover{ border-color:var(--accent-idle); background:#141631; }
+
+  .btn-danger{
+    background:var(--c-rose-soft); color:var(--c-rose); border:1px solid rgba(255,93,108,.35);
+    padding:10px 18px; border-radius:var(--r-sm); font-size:13.5px; font-weight:600;
+    transition:background .2s var(--ease);
+  }
+  .btn-danger:hover{ background:rgba(255,93,108,.24); }
+
+  .link-btn{
+    background:none; border:none; color:var(--accent-idle); font-size:13px; font-weight:600;
+    padding:0;
+  }
+  .link-btn:hover{ text-decoration:underline; }
+
+  .btn-row{ display:flex; gap:10px; flex-wrap:wrap; margin-top:14px; }
+
+  /* ========================================================================
+     PANELS
+     ===================================================================== */
+  .panel{
+    background:var(--c-ink); border:1px solid var(--c-line-soft);
+    border-radius:var(--r-lg); padding:24px; margin-top:18px;
+  }
+  .panel.danger{ border-color:rgba(255,93,108,.22); }
+  .panel-head{ display:flex; align-items:center; justify-content:space-between; margin-bottom:14px; }
+  .panel h2{ font-size:14px; font-weight:600; color:var(--c-mist); letter-spacing:.01em; }
+  .panel.split{ display:flex; gap:28px; align-items:center; flex-wrap:wrap; }
+  .chart-col{ flex:none; }
+  .legend-col{ flex:1; min-width:180px; display:flex; flex-direction:column; gap:9px; }
+
+  .stat-cards{ display:grid; grid-template-columns:repeat(4,1fr); gap:14px; }
+  .stat-card{
+    background:var(--c-ink); border:1px solid var(--c-line-soft); border-radius:var(--r-md);
+    padding:18px 16px; display:flex; flex-direction:column; gap:8px;
+  }
+  .stat-label{ font-size:11px; text-transform:uppercase; letter-spacing:.1em; color:var(--c-fog); font-weight:600; }
+  .stat-value{ font-family:var(--font-mono); font-size:22px; font-weight:600; font-variant-numeric:tabular-nums; }
+
+  .badge{
+    background:var(--accent-idle-soft); color:var(--accent-idle);
+    font-size:12px; font-weight:600; padding:5px 11px; border-radius:999px;
+    font-family:var(--font-mono);
+  }
+
+  .empty-state{ color:var(--c-fog); font-size:13.5px; padding:18px 2px; }
+
+  /* ========================================================================
+     TIMER VIEW
+     ===================================================================== */
+  .timer-stage{
+    position:relative; display:flex; flex-direction:column; align-items:center;
+    padding:54px 0 38px; isolation:isolate;
+  }
+  .timer-glow{
+    position:absolute; inset:-30px; z-index:-1; pointer-events:none;
+    background:radial-gradient(circle at 50% 38%, var(--accent-current-soft) 0%, transparent 68%);
+    filter:blur(8px); transition:background 600ms var(--ease);
+  }
+  body.running .timer-glow{ animation:pulseGlow 2.6s ease-in-out infinite; }
+
+  .timer-display{
+    font-family:var(--font-mono); font-variant-numeric:tabular-nums;
+    display:flex; align-items:baseline; color:var(--c-paper);
+  }
+  #tmHMS{ font-size:72px; font-weight:600; letter-spacing:-.01em; }
+  .timer-centi{ font-size:30px; color:var(--c-mist); margin-left:2px; }
+
+  .timer-today{ margin-top:10px; font-size:13.5px; color:var(--c-fog); }
+
+  .btn-record{ margin-top:30px; }
+
+  /* ========================================================================
+     SESSION / PLAN LIST ROWS
+     ===================================================================== */
+  .session-list{ display:flex; flex-direction:column; }
+  .session-row{
+    display:flex; align-items:center; gap:12px;
+    padding:13px 4px; border-bottom:1px solid var(--c-line-soft);
+    animation: rowIn .3s var(--ease);
+  }
+  .session-row:last-child{ border-bottom:none; }
+  .dot{ width:9px; height:9px; border-radius:50%; flex:none; }
+  .row-main{ flex:1; min-width:0; }
+  .row-time{ font-size:14px; color:var(--c-paper); }
+  .row-sub{ font-size:12px; color:var(--c-fog); margin-top:2px; font-family:var(--font-mono); }
+  .row-notes{
+    flex:1.2; min-width:0; background:transparent; border:none; color:var(--c-mist);
+    font-size:13px; text-align:right; padding:6px 4px;
+  }
+  .row-notes::placeholder{ color:var(--c-line); }
+  .row-actions{ display:flex; gap:4px; flex:none; }
+  .row-icon-btn{
+    width:28px; height:28px; border:none; background:none; color:var(--c-fog);
+    border-radius:7px; display:flex; align-items:center; justify-content:center;
+    transition:background .15s var(--ease), color .15s var(--ease);
+  }
+  .row-icon-btn svg{ width:14px; height:14px; }
+  .row-icon-btn:hover{ background:var(--c-ink-2); color:var(--c-paper); }
+  .row-icon-btn.danger:hover{ color:var(--c-rose); }
+  .row-done{ opacity:.5; }
+  .row-done .row-time{ text-decoration:line-through; }
+
+  .accent-bar{ width:3px; height:30px; border-radius:3px; flex:none; }
+
+  /* History */
+  .search-row{ margin-bottom:8px; }
+  .text-input, .date-input, input[type="time"], input[type="text"], input[type="date"]{
+    background:var(--c-ink-2); border:1px solid var(--c-line); color:var(--c-paper);
+    border-radius:var(--r-sm); padding:10px 13px; font-size:13.5px; width:100%;
+    transition:border-color .2s var(--ease);
+  }
+  .text-input:focus, .date-input:focus, input:focus{ border-color:var(--accent-idle); }
+  .history-group{ margin-top:10px; }
+  .history-group-head{
+    display:flex; align-items:center; justify-content:space-between;
+    padding:10px 4px; cursor:pointer; user-select:none;
+  }
+  .history-group-head h3{ font-size:14px; font-weight:600; }
+  .history-group-head .hg-total{ font-family:var(--font-mono); font-size:12.5px; color:var(--c-fog); }
+  .history-group-body{ overflow:hidden; }
+  .history-group.collapsed .history-group-body{ display:none; }
+  .chevron{ transition:transform .2s var(--ease); color:var(--c-fog); }
+  .history-group.collapsed .chevron{ transform:rotate(-90deg); }
+
+  .date-nav{ display:flex; align-items:center; gap:10px; margin-bottom:4px; }
+  .date-nav .date-input{ width:auto; flex:none; }
+  .date-nav .spacer{ flex:1; }
+
+  /* ========================================================================
+     CHARTS
+     ===================================================================== */
+  .chart{ width:100%; height:auto; display:block; }
+  .bar{ fill:var(--accent-idle); transition:opacity .15s var(--ease); }
+  .bar:hover{ opacity:.7; }
+  .bar-label{ fill:var(--c-fog); font-size:10px; font-family:var(--font-ui); }
+  .bar-value{ fill:var(--c-mist); font-size:10px; font-family:var(--font-mono); }
+  .donut-center-val{ fill:var(--c-paper); font-size:20px; font-weight:600; font-family:var(--font-mono); text-anchor:middle; }
+  .donut-center-label{ fill:var(--c-fog); font-size:10px; text-anchor:middle; text-transform:uppercase; letter-spacing:.08em; }
+
+  .legend-row{ display:flex; align-items:center; gap:10px; font-size:13px; }
+  .legend-row .dot{ width:9px; height:9px; }
+  .legend-row .lr-name{ flex:1; color:var(--c-paper); }
+  .legend-row .lr-val{ font-family:var(--font-mono); color:var(--c-fog); font-size:12px; }
+
+  /* ========================================================================
+     THEME GRID
+     ===================================================================== */
+  .theme-grid{ display:flex; gap:12px; margin-top:6px; flex-wrap:wrap; }
+  .theme-swatch{
+    width:64px; height:64px; border-radius:var(--r-md); border:2px solid transparent;
+    background:var(--c-ink-2); display:flex; align-items:center; justify-content:center;
+    transition:border-color .2s var(--ease);
+  }
+  .theme-swatch.active{ border-color:var(--c-paper); }
+  .theme-swatch .swatch-dots{ display:flex; gap:5px; }
+  .theme-swatch .swatch-dot{ width:16px; height:16px; border-radius:50%; }
+
+  /* ========================================================================
+     MODALS
+     ===================================================================== */
+  .modal-layer{
+    position:fixed; inset:0; display:none; align-items:center; justify-content:center; z-index:50;
+  }
+  .modal-layer.open{ display:flex; }
+  .modal-overlay{
+    position:absolute; inset:0; background:rgba(2,2,8,.62); backdrop-filter:blur(3px);
+  }
+  .modal{
+    position:relative; background:var(--c-ink); border:1px solid var(--c-line);
+    border-radius:var(--r-lg); padding:26px; width:380px; max-width:92vw;
+    display:none; box-shadow:0 30px 60px -20px rgba(0,0,0,.6);
+    animation: modalIn .25s var(--ease);
+  }
+  .modal.open{ display:block; }
+  .modal h3{ font-size:16px; font-weight:600; margin-bottom:18px; }
+  .field{ margin-bottom:14px; }
+  .field label{ display:block; font-size:11px; text-transform:uppercase; letter-spacing:.08em; color:var(--c-fog); margin-bottom:6px; font-weight:600; }
+  .field-row{ display:flex; gap:10px; }
+  .field-row .field{ flex:1; }
+  .modal-actions{ display:flex; justify-content:flex-end; gap:10px; margin-top:20px; }
+  .modal p.modal-msg{ color:var(--c-mist); font-size:13.5px; line-height:1.6; margin-bottom:20px; }
+
+  /* ========================================================================
+     TOASTS
+     ===================================================================== */
+  .toast-stack{
+    position:fixed; bottom:26px; left:50%; transform:translateX(-50%);
+    display:flex; flex-direction:column; gap:8px; z-index:80; align-items:center;
+  }
+  .toast{
+    background:var(--c-ink-2); border:1px solid var(--c-line); color:var(--c-paper);
+    padding:11px 18px; border-radius:999px; font-size:13px; font-weight:500;
+    box-shadow:0 14px 28px -10px rgba(0,0,0,.5);
+    opacity:0; transform:translateY(8px); transition:opacity .25s var(--ease), transform .25s var(--ease);
+  }
+  .toast.show{ opacity:1; transform:translateY(0); }
+
+  /* ========================================================================
+     ANIMATIONS
+     ===================================================================== */
+  @keyframes viewIn{ from{ opacity:0; transform:translateY(6px); } to{ opacity:1; transform:translateY(0); } }
+  @keyframes rowIn{ from{ opacity:0; transform:translateY(-4px); } to{ opacity:1; transform:translateY(0); } }
+  @keyframes modalIn{ from{ opacity:0; transform:translateY(8px) scale(.98); } to{ opacity:1; transform:translateY(0) scale(1); } }
+  @keyframes pulseGlow{ 0%,100%{ opacity:.75; } 50%{ opacity:1; } }
+  @keyframes dotPulse{ 0%,100%{ opacity:1; } 50%{ opacity:.35; } }
+
+  @media (prefers-reduced-motion: reduce){
+    *{ animation-duration:.001ms !important; animation-iteration-count:1 !important; transition-duration:.001ms !important; }
+  }
+
+  /* ========================================================================
+     RESPONSIVE
+     ===================================================================== */
+  @media (max-width: 880px){
+    .stage{ padding:28px 22px 48px; }
+    .stat-cards{ grid-template-columns:repeat(2,1fr); }
+    .panel.split{ flex-direction:column; align-items:flex-start; }
+  }
+  @media (max-width: 560px){
+    .rail{ width:64px; }
+    #tmHMS{ font-size:54px; }
+    .timer-centi{ font-size:22px; }
+    .btn-record{ width:96px; height:96px; }
+  }
+</style>
+</head>
+<body>
+
+  <div class="boot-loading" id="bootLoading"><div class="boot-logo">ST</div></div>
+
+  <div class="auth-screen" id="authScreen">
+    <div class="auth-card">
+      <div class="auth-logo">ST</div>
+      <h1 id="authTitle">Sign in to StudyTrack</h1>
+      <p class="muted" id="authSubtitle">Your sessions, synced across every device.</p>
+      <div class="field"><label>Email</label><input type="email" id="authEmail" autocomplete="email" /></div>
+      <div class="field"><label>Password</label><input type="password" id="authPassword" autocomplete="current-password" /></div>
+      <p class="auth-error" id="authError"></p>
+      <button class="btn-primary auth-submit" id="authSubmit">Sign in</button>
+      <p class="auth-toggle">
+        <span id="authToggleText">Don't have an account?</span>
+        <button class="link-btn" id="authToggleBtn">Sign up</button>
+      </p>
+    </div>
+  </div>
+
+  <div class="shell">
+    <nav class="rail" id="rail">
+      <div class="rail-logo">ST</div>
+
+      <button class="rail-btn active" data-view="timer" title="Timer">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="13" r="8"/><path d="M12 9v4l3 2"/><path d="M9 1h6"/><path d="M19 4l1.5 1.5"/></svg>
+      </button>
+      <button class="rail-btn" data-view="planner" title="Planner">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="5" width="18" height="16" rx="2.5"/><path d="M3 9h18"/><path d="M8 3v4M16 3v4"/></svg>
+      </button>
+      <button class="rail-btn" data-view="history" title="History">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"><path d="M4 6h16M4 12h16M4 18h10"/></svg>
+      </button>
+      <button class="rail-btn" data-view="stats" title="Stats">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"><path d="M5 19V10M12 19V5M19 19v-7"/></svg>
+      </button>
+
+      <div class="rail-spacer"></div>
+      <div class="rail-pulse" title="Timer status"></div>
+      <button class="rail-btn" data-view="settings" title="Settings">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="3"/><path d="M19.4 13a7.97 7.97 0 0 0 0-2l1.8-1.4-2-3.4-2.1.6a8 8 0 0 0-1.7-1l-.3-2.2H9.9l-.3 2.2a8 8 0 0 0-1.7 1l-2.1-.6-2 3.4L5.6 11a7.97 7.97 0 0 0 0 2l-1.8 1.4 2 3.4 2.1-.6c.5.4 1.1.75 1.7 1l.3 2.2h4.2l.3-2.2a8 8 0 0 0 1.7-1l2.1.6 2-3.4L19.4 13z"/></svg>
+      </button>
+    </nav>
+
+    <main class="stage">
+
+      <!-- ============================== TIMER ============================== -->
+      <section class="view active" data-view="timer">
+        <header class="view-head">
+          <div><p class="eyebrow">Focus</p><h1>Timer</h1></div>
+          <button class="icon-btn" id="btnManualAdd" title="Add a session you forgot to time">
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round"><path d="M12 5v14M5 12h14"/></svg>
+          </button>
+        </header>
+
+        <div class="timer-stage" id="timerStage">
+          <div class="timer-glow" aria-hidden="true"></div>
+          <div class="timer-display">
+            <span id="tmHMS">00:00</span><span id="tmCenti" class="timer-centi">.00</span>
+          </div>
+          <p class="timer-today" id="timerToday">No sessions yet today</p>
+          <button class="btn-record" id="btnStartStop">
+            <span class="btn-record-dot"></span>
+            <span id="btnStartStopLabel">Start</span>
+          </button>
+        </div>
+
+        <div class="panel">
+          <div class="panel-head">
+            <h2>Recent</h2>
+            <button class="link-btn" data-goto="history">View all →</button>
+          </div>
+          <div id="recentList" class="session-list"></div>
+          <p class="empty-state" id="recentEmpty">Nothing logged yet today. Hit Start when you begin studying.</p>
+        </div>
+      </section>
+
+      <!-- ============================== PLANNER ============================== -->
+      <section class="view" data-view="planner">
+        <header class="view-head">
+          <div><p class="eyebrow" id="plannerDow">—</p><h1 id="plannerDate">Today's plan</h1></div>
+          <button class="icon-btn" id="btnAddPlan" title="Add a planned session">
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round"><path d="M12 5v14M5 12h14"/></svg>
+          </button>
+        </header>
+
+        <div class="date-nav">
+          <button class="icon-btn small" id="plDatePrev" title="Previous day">
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M15 6l-6 6 6 6"/></svg>
+          </button>
+          <input type="date" id="plDateInput" class="date-input" />
+          <button class="icon-btn small" id="plDateNext" title="Next day">
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M9 6l6 6-6 6"/></svg>
+          </button>
+          <button class="link-btn" id="plDateToday">Today</button>
+          <span class="spacer"></span>
+          <span class="badge" id="plDayTotal">0m planned</span>
+        </div>
+
+        <div class="panel">
+          <div id="planList" class="session-list"></div>
+          <p class="empty-state" id="planEmpty">Nothing planned for this day. Tap + to add a study block.</p>
+        </div>
+      </section>
+
+      <!-- ============================== HISTORY ============================== -->
+      <section class="view" data-view="history">
+        <header class="view-head">
+          <div><p class="eyebrow">Log</p><h1>History</h1></div>
+        </header>
+
+        <div class="search-row">
+          <input type="search" id="historySearch" placeholder="Search subjects or notes…" class="text-input" />
+        </div>
+
+        <div id="historyList" class="history-groups"></div>
+        <p class="empty-state" id="historyEmpty">No study sessions recorded yet.</p>
+      </section>
+
+      <!-- ============================== STATS ============================== -->
+      <section class="view" data-view="stats">
+        <header class="view-head"><div><p class="eyebrow">Overview</p><h1>Stats</h1></div></header>
+
+        <div class="stat-cards">
+          <div class="stat-card"><span class="stat-label">Today</span><span class="stat-value" id="statToday">0m</span></div>
+          <div class="stat-card"><span class="stat-label">This week</span><span class="stat-value" id="statWeek">0m</span></div>
+          <div class="stat-card"><span class="stat-label">All time</span><span class="stat-value" id="statTotal">0h</span></div>
+          <div class="stat-card"><span class="stat-label">Streak</span><span class="stat-value" id="statStreak">0d</span></div>
+        </div>
+
+        <div class="panel">
+          <h2>Last 7 days</h2>
+          <svg id="weekChart" class="chart" viewBox="0 0 640 200" preserveAspectRatio="xMidYMid meet"></svg>
+        </div>
+
+        <div class="panel split">
+          <div class="chart-col">
+            <h2>By subject</h2>
+            <svg id="subjectDonut" class="chart donut" viewBox="0 0 220 220" width="220" height="220"></svg>
+          </div>
+          <div class="legend-col" id="subjectLegend"></div>
+        </div>
+      </section>
+
+      <!-- ============================== SETTINGS ============================== -->
+      <section class="view" data-view="settings">
+        <header class="view-head"><div><p class="eyebrow">App</p><h1>Settings</h1></div></header>
+
+        <div class="panel">
+          <h2>Account</h2>
+          <p class="muted" id="accountEmail">—</p>
+          <div class="btn-row"><button class="btn-secondary" id="btnSignOut">Sign out</button></div>
+        </div>
+
+        <div class="panel">
+          <h2>Appearance</h2>
+          <p class="muted">The timer glows in your idle color, then shifts to your active color the moment you press Start.</p>
+          <div class="theme-grid" id="themeGrid"></div>
+        </div>
+
+        <div class="panel">
+          <h2>Backup</h2>
+          <p class="muted">Everything is stored locally in this browser, on this computer. Export a backup now and then, or before switching computers.</p>
+          <div class="btn-row">
+            <button class="btn-secondary" id="btnExport">Export backup</button>
+            <button class="btn-secondary" id="btnImport">Import backup</button>
+            <input type="file" id="fileImport" accept="application/json" hidden />
+          </div>
+        </div>
+
+        <div class="panel danger">
+          <h2>Reset</h2>
+          <p class="muted">Permanently deletes every session and plan stored on this computer. This can't be undone.</p>
+          <div class="btn-row"><button class="btn-danger" id="btnClearAll">Clear all data</button></div>
+        </div>
+      </section>
+
+    </main>
+  </div>
+
+  <!-- ============================== MODALS ============================== -->
+  <div class="modal-layer" id="modalLayer">
+    <div class="modal-overlay" id="modalOverlay"></div>
+
+    <div class="modal" id="modalManual">
+      <h3>Add a session</h3>
+      <div class="field"><label>Date</label><input type="date" id="manDate" /></div>
+      <div class="field-row">
+        <div class="field"><label>Start</label><input type="time" id="manStart" /></div>
+        <div class="field"><label>End</label><input type="time" id="manEnd" /></div>
+      </div>
+      <div class="field"><label>Subject / notes</label><input type="text" id="manNotes" placeholder="e.g. Biology — chapter 4" /></div>
+      <div class="modal-actions">
+        <button class="btn-secondary" data-close>Cancel</button>
+        <button class="btn-primary" id="manSave">Add session</button>
+      </div>
+    </div>
+
+    <div class="modal" id="modalEditSession">
+      <h3>Edit session</h3>
+      <div class="field"><label>Date</label><input type="date" id="editDate" /></div>
+      <div class="field-row">
+        <div class="field"><label>Start</label><input type="time" id="editStart" /></div>
+        <div class="field"><label>End</label><input type="time" id="editEnd" /></div>
+      </div>
+      <div class="field"><label>Subject / notes</label><input type="text" id="editNotes" /></div>
+      <div class="modal-actions">
+        <button class="btn-secondary" data-close>Cancel</button>
+        <button class="btn-primary" id="editSave">Save changes</button>
+      </div>
+    </div>
+
+    <div class="modal" id="modalPlan">
+      <h3 id="planModalTitle">Add to plan</h3>
+      <div class="field"><label>Subject</label><input type="text" id="planSubject" placeholder="e.g. Biology" /></div>
+      <div class="field"><label>Date</label><input type="date" id="planDate" /></div>
+      <div class="field-row">
+        <div class="field"><label>Start</label><input type="time" id="planStart" /></div>
+        <div class="field"><label>End</label><input type="time" id="planEnd" /></div>
+      </div>
+      <div class="modal-actions">
+        <button class="btn-secondary" data-close>Cancel</button>
+        <button class="btn-primary" id="planSave">Save</button>
+      </div>
+    </div>
+
+    <div class="modal" id="modalConfirm">
+      <h3 id="confirmTitle">Are you sure?</h3>
+      <p class="modal-msg" id="confirmMsg">This action cannot be undone.</p>
+      <div class="modal-actions">
+        <button class="btn-secondary" data-close>Cancel</button>
+        <button class="btn-danger" id="confirmOk">Confirm</button>
+      </div>
+    </div>
+  </div>
+
+  <div class="toast-stack" id="toastStack"></div>
+
+<script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+<script>
+(function(){
+  "use strict";
+
+  /* ======================================================================
+     UTILITIES
+     =================================================================== */
+  function pad(n){ return String(n).padStart(2,"0"); }
+
+  function todayStr(){
+    const d = new Date();
+    return d.getFullYear() + "-" + pad(d.getMonth()+1) + "-" + pad(d.getDate());
+  }
+  function dateStrToDate(s){
+    const parts = s.split("-").map(Number);
+    return new Date(parts[0], parts[1]-1, parts[2]);
+  }
+  function dateToStr(d){
+    return d.getFullYear() + "-" + pad(d.getMonth()+1) + "-" + pad(d.getDate());
+  }
+  function addDays(s, n){
+    const d = dateStrToDate(s);
+    d.setDate(d.getDate() + n);
+    return dateToStr(d);
+  }
+  function formatDateHuman(s){
+    const d = dateStrToDate(s);
+    const todayS = todayStr();
+    const yestS = addDays(todayS, -1);
+    if(s === todayS) return "Today";
+    if(s === yestS) return "Yesterday";
+    return d.toLocaleDateString(undefined, { weekday:"long", month:"long", day:"numeric" });
+  }
+  function dowLabel(s){
+    return dateStrToDate(s).toLocaleDateString(undefined, { weekday:"long" });
+  }
+  function timeToMinutes(t){
+    const parts = t.split(":").map(Number);
+    return parts[0]*60 + parts[1];
+  }
+  function durationMinutesBetween(start, end){
+    if(!start || !end) return null;
+    const diff = timeToMinutes(end) - timeToMinutes(start);
+    if(diff <= 0) return null;
+    return diff;
+  }
+  function minutesToLabel(min){
+    min = Math.round(min);
+    const h = Math.floor(min/60), m = min%60;
+    if(h>0 && m>0) return h+"h "+m+"m";
+    if(h>0) return h+"h";
+    return m+"m";
+  }
+  function secToClock(sec){
+    sec = Math.max(0, Math.round(sec));
+    const h = Math.floor(sec/3600), m = Math.floor((sec%3600)/60), s = sec%60;
+    return h>0 ? (pad(h)+":"+pad(m)+":"+pad(s)) : (pad(m)+":"+pad(s));
+  }
+  function escapeHtml(str){
+    return (str||"").replace(/[&<>"']/g, function(c){
+      return ({"&":"&amp;","<":"&lt;",">":"&gt;","\"":"&quot;","'":"&#39;"})[c];
+    });
+  }
+  function subjectColor(text){
+    const t = (text||"").trim() || "Untitled";
+    let hash = 0;
+    for(let i=0;i<t.length;i++){ hash = (hash*31 + t.charCodeAt(i)) >>> 0; }
+    const hue = hash % 360;
+    return "hsl(" + hue + " 68% 60%)";
+  }
+  function debounce(fn, ms){
+    let t;
+    return function(){
+      const args = arguments, ctx = this;
+      clearTimeout(t);
+      t = setTimeout(function(){ fn.apply(ctx, args); }, ms);
+    };
+  }
+
+  /* ======================================================================
+     SUPABASE CLIENT
+     =================================================================== */
+  const SUPABASE_URL = "https://lkagjbydwlzusiaidkhj.supabase.co";
+  const SUPABASE_KEY = "sb_publishable_V2ICHAf0oAZ-VaiYa_EWwA_Zm2mUBWv";
+  const sb = window.supabase.createClient(SUPABASE_URL, SUPABASE_KEY);
+
+  let currentUser = null;
+  let realtimeChannel = null;
+
+  let state = { sessions: [], plans: [], settings: { theme: "indigo" } };
+
+  /* ---- row <-> app-state mapping --------------------------------------- */
+  function rowToSession(r){
+    return { id:r.id, date:r.date, start:r.start_time, end:r.end_time, durationSec:r.duration_sec, notes:r.notes||"", manual:!!r.manual };
+  }
+  function rowToPlan(r){
+    return { id:r.id, date:r.date, subject:r.subject, start:r.start_time, end:r.end_time, done:!!r.done };
+  }
+
+  /* ---- read --------------------------------------------------------------*/
+  async function loadAllData(){
+    const [sessRes, planRes, setRes] = await Promise.all([
+      sb.from("sessions").select("*").order("date", { ascending:false }),
+      sb.from("plans").select("*"),
+      sb.from("user_settings").select("*").eq("user_id", currentUser.id).maybeSingle()
+    ]);
+    if(sessRes.error){ console.error(sessRes.error); toast("Couldn't load your sessions."); }
+    if(planRes.error){ console.error(planRes.error); toast("Couldn't load your plans."); }
+    state.sessions = (sessRes.data || []).map(rowToSession);
+    state.plans = (planRes.data || []).map(rowToPlan);
+    state.settings = { theme: (setRes.data && setRes.data.theme) || "indigo" };
+    applyTheme(state.settings.theme);
+  }
+
+  /* ---- sessions ----------------------------------------------------------*/
+  async function dbInsertSession(session){
+    const { data, error } = await sb.from("sessions").insert({
+      user_id: currentUser.id, date: session.date, start_time: session.start,
+      end_time: session.end, duration_sec: session.durationSec,
+      notes: session.notes, manual: session.manual
+    }).select().single();
+    if(error){ console.error(error); toast("Couldn't save that session."); return null; }
+    return rowToSession(data);
+  }
+  async function dbUpdateSession(id, fields){
+    const payload = {};
+    if(fields.date !== undefined) payload.date = fields.date;
+    if(fields.start !== undefined) payload.start_time = fields.start;
+    if(fields.end !== undefined) payload.end_time = fields.end;
+    if(fields.durationSec !== undefined) payload.duration_sec = fields.durationSec;
+    if(fields.notes !== undefined) payload.notes = fields.notes;
+    const { error } = await sb.from("sessions").update(payload).eq("id", id);
+    if(error){ console.error(error); toast("Couldn't update that session."); return false; }
+    return true;
+  }
+  async function dbDeleteSession(id){
+    const { error } = await sb.from("sessions").delete().eq("id", id);
+    if(error){ console.error(error); toast("Couldn't delete that session."); return false; }
+    return true;
+  }
+
+  /* ---- plans ---------------------------------------------------------------*/
+  async function dbInsertPlan(plan){
+    const { data, error } = await sb.from("plans").insert({
+      user_id: currentUser.id, date: plan.date, subject: plan.subject,
+      start_time: plan.start, end_time: plan.end, done: !!plan.done
+    }).select().single();
+    if(error){ console.error(error); toast("Couldn't save that plan."); return null; }
+    return rowToPlan(data);
+  }
+  async function dbUpdatePlan(id, fields){
+    const payload = {};
+    if(fields.date !== undefined) payload.date = fields.date;
+    if(fields.subject !== undefined) payload.subject = fields.subject;
+    if(fields.start !== undefined) payload.start_time = fields.start;
+    if(fields.end !== undefined) payload.end_time = fields.end;
+    if(fields.done !== undefined) payload.done = fields.done;
+    const { error } = await sb.from("plans").update(payload).eq("id", id);
+    if(error){ console.error(error); toast("Couldn't update that plan."); return false; }
+    return true;
+  }
+  async function dbDeletePlan(id){
+    const { error } = await sb.from("plans").delete().eq("id", id);
+    if(error){ console.error(error); toast("Couldn't delete that plan."); return false; }
+    return true;
+  }
+
+  /* ---- settings ------------------------------------------------------------*/
+  async function dbUpdateTheme(theme){
+    const { error } = await sb.from("user_settings")
+      .upsert({ user_id: currentUser.id, theme: theme }, { onConflict: "user_id" });
+    if(error){ console.error(error); toast("Couldn't save that theme."); }
+  }
+
+  /* ---- bulk import / clear --------------------------------------------------*/
+  async function dbWipeAll(){
+    await sb.from("sessions").delete().eq("user_id", currentUser.id);
+    await sb.from("plans").delete().eq("user_id", currentUser.id);
+  }
+  async function dbImportBackup(parsed){
+    await dbWipeAll();
+    if(parsed.sessions && parsed.sessions.length){
+      const rows = parsed.sessions.map(function(s){
+        return { user_id:currentUser.id, date:s.date, start_time:s.start, end_time:s.end,
+                  duration_sec:s.durationSec, notes:s.notes||"", manual:!!s.manual };
+      });
+      const { error } = await sb.from("sessions").insert(rows);
+      if(error) console.error(error);
+    }
+    if(parsed.plans && parsed.plans.length){
+      const rows = parsed.plans.map(function(p){
+        return { user_id:currentUser.id, date:p.date, subject:p.subject, start_time:p.start, end_time:p.end, done:!!p.done };
+      });
+      const { error } = await sb.from("plans").insert(rows);
+      if(error) console.error(error);
+    }
+    if(parsed.settings && parsed.settings.theme){
+      await dbUpdateTheme(parsed.settings.theme);
+    }
+  }
+
+  /* ---- realtime: pick up changes made from your other device ---------------*/
+  const refetchAndRender = debounce(async function(){
+    await loadAllData();
+    renderAll();
+  }, 400);
+
+  function subscribeRealtime(userId){
+    if(realtimeChannel){ sb.removeChannel(realtimeChannel); realtimeChannel = null; }
+    realtimeChannel = sb.channel("studytrack-sync-" + userId)
+      .on("postgres_changes", { event:"*", schema:"public", table:"sessions", filter:"user_id=eq."+userId }, refetchAndRender)
+      .on("postgres_changes", { event:"*", schema:"public", table:"plans", filter:"user_id=eq."+userId }, refetchAndRender)
+      .on("postgres_changes", { event:"*", schema:"public", table:"user_settings", filter:"user_id=eq."+userId }, refetchAndRender)
+      .subscribe();
+  }
+
+  /* ======================================================================
+     TOASTS
+     =================================================================== */
+  const toastStack = document.getElementById("toastStack");
+  function toast(msg){
+    const el = document.createElement("div");
+    el.className = "toast";
+    el.textContent = msg;
+    toastStack.appendChild(el);
+    requestAnimationFrame(function(){ el.classList.add("show"); });
+    setTimeout(function(){
+      el.classList.remove("show");
+      setTimeout(function(){ el.remove(); }, 260);
+    }, 2400);
+  }
+
+  /* ======================================================================
+     MODALS
+     =================================================================== */
+  const modalLayer = document.getElementById("modalLayer");
+  const modalOverlay = document.getElementById("modalOverlay");
+  let pendingConfirm = null;
+
+  function openModal(id){
+    document.querySelectorAll(".modal").forEach(function(m){ m.classList.remove("open"); });
+    document.getElementById(id).classList.add("open");
+    modalLayer.classList.add("open");
+  }
+  function closeModal(){
+    modalLayer.classList.remove("open");
+    document.querySelectorAll(".modal").forEach(function(m){ m.classList.remove("open"); });
+    pendingConfirm = null;
+  }
+  function openConfirm(title, msg, onConfirm){
+    document.getElementById("confirmTitle").textContent = title;
+    document.getElementById("confirmMsg").textContent = msg;
+    pendingConfirm = onConfirm;
+    openModal("modalConfirm");
+  }
+  modalOverlay.addEventListener("click", closeModal);
+  document.querySelectorAll("[data-close]").forEach(function(b){ b.addEventListener("click", closeModal); });
+  document.getElementById("confirmOk").addEventListener("click", function(){
+    const fn = pendingConfirm;
+    closeModal();
+    if(fn) fn();
+  });
+  document.addEventListener("keydown", function(e){
+    if(e.key === "Escape" && modalLayer.classList.contains("open")) closeModal();
+  });
+
+  /* ======================================================================
+     NAVIGATION
+     =================================================================== */
+  function switchView(view){
+    document.querySelectorAll(".view").forEach(function(v){
+      v.classList.toggle("active", v.dataset.view === view);
+    });
+    document.querySelectorAll(".rail-btn").forEach(function(b){
+      b.classList.toggle("active", b.dataset.view === view);
+    });
+    if(view === "history") renderHistory(document.getElementById("historySearch").value);
+    if(view === "planner") renderPlanner();
+    if(view === "stats") renderStats();
+    if(view === "settings") renderSettings();
+  }
+  document.querySelectorAll(".rail-btn").forEach(function(b){
+    b.addEventListener("click", function(){ switchView(b.dataset.view); });
+  });
+  document.querySelectorAll("[data-goto]").forEach(function(b){
+    b.addEventListener("click", function(){ switchView(b.dataset.goto); });
+  });
+
+  /* ======================================================================
+     TIMER
+     =================================================================== */
+  let timerRunning = false;
+  let timerStartMs = 0;
+  let timerInterval = null;
+
+  const tmHMS = document.getElementById("tmHMS");
+  const tmCenti = document.getElementById("tmCenti");
+  const btnStartStop = document.getElementById("btnStartStop");
+  const btnStartStopLabel = document.getElementById("btnStartStopLabel");
+
+  function tickDisplay(){
+    const elapsed = Date.now() - timerStartMs;
+    const totalSec = elapsed/1000;
+    const h = Math.floor(totalSec/3600), m = Math.floor((totalSec%3600)/60), s = Math.floor(totalSec%60);
+    const cs = Math.floor((elapsed%1000)/10);
+    tmHMS.textContent = h>0 ? (pad(h)+":"+pad(m)+":"+pad(s)) : (pad(m)+":"+pad(s));
+    tmCenti.textContent = "." + pad(cs);
+  }
+  function resetDisplay(){
+    tmHMS.textContent = "00:00";
+    tmCenti.textContent = ".00";
+  }
+
+  function startTimer(){
+    timerRunning = true;
+    timerStartMs = Date.now();
+    document.body.classList.add("running");
+    btnStartStopLabel.textContent = "Stop";
+    timerInterval = setInterval(tickDisplay, 50);
+    tickDisplay();
+  }
+  async function stopTimer(){
+    clearInterval(timerInterval);
+    const elapsedSec = Math.round((Date.now() - timerStartMs)/1000);
+    timerRunning = false;
+    document.body.classList.remove("running");
+    btnStartStopLabel.textContent = "Start";
+    resetDisplay();
+
+    if(elapsedSec < 1){ return; } // ignore accidental instant taps
+
+    const startD = new Date(timerStartMs);
+    const endD = new Date();
+    const draft = {
+      date: todayStr(),
+      start: pad(startD.getHours())+":"+pad(startD.getMinutes()),
+      end: pad(endD.getHours())+":"+pad(endD.getMinutes()),
+      durationSec: elapsedSec,
+      notes: "",
+      manual: false
+    };
+    const saved = await dbInsertSession(draft);
+    if(!saved) return;
+    state.sessions.unshift(saved);
+    renderAll();
+    toast("Session saved · " + secToClock(elapsedSec));
+
+    requestAnimationFrame(function(){
+      const input = document.querySelector('.row-notes[data-id="'+saved.id+'"]');
+      if(input) input.focus();
+    });
+  }
+
+  btnStartStop.addEventListener("click", function(){
+    if(!timerRunning) startTimer(); else stopTimer();
+  });
+
+  window.addEventListener("beforeunload", function(e){
+    if(timerRunning){
+      e.preventDefault();
+      e.returnValue = "";
+    }
+  });
+
+  document.addEventListener("keydown", function(e){
+    if(e.code !== "Space") return;
+    const tag = (document.activeElement && document.activeElement.tagName) || "";
+    if(tag === "INPUT" || tag === "TEXTAREA") return;
+    if(modalLayer.classList.contains("open")) return;
+    const activeView = document.querySelector(".view.active");
+    if(!activeView || activeView.dataset.view !== "timer") return;
+    e.preventDefault();
+    if(!timerRunning) startTimer(); else stopTimer();
+  });
+
+  /* ======================================================================
+     SESSION ROW BUILDER (shared by Recent + History)
+     =================================================================== */
+  function buildSessionRow(session, compact){
+    const row = document.createElement("div");
+    row.className = "session-row";
+
+    const dot = document.createElement("span");
+    dot.className = "dot";
+    dot.style.background = subjectColor(session.notes);
+    row.appendChild(dot);
+
+    const main = document.createElement("div");
+    main.className = "row-main";
+    const rt = document.createElement("div");
+    rt.className = "row-time";
+    rt.textContent = session.start + " – " + session.end;
+    const rs = document.createElement("div");
+    rs.className = "row-sub";
+    rs.textContent = secToClock(session.durationSec) + (session.manual ? "  ·  manual" : "");
+    main.appendChild(rt); main.appendChild(rs);
+    row.appendChild(main);
+
+    const notesInput = document.createElement("input");
+    notesInput.type = "text";
+    notesInput.className = "row-notes";
+    notesInput.placeholder = "Add study notes…";
+    notesInput.value = session.notes || "";
+    notesInput.dataset.id = session.id;
+    const saveNotes = debounce(async function(){
+      const s = state.sessions.find(function(x){ return x.id === session.id; });
+      if(!s) return;
+      s.notes = notesInput.value;
+      dot.style.background = subjectColor(s.notes);
+      await dbUpdateSession(s.id, { notes: s.notes });
+    }, 350);
+    notesInput.addEventListener("input", saveNotes);
+    row.appendChild(notesInput);
+
+    const actions = document.createElement("div");
+    actions.className = "row-actions";
+
+    const editBtn = document.createElement("button");
+    editBtn.className = "row-icon-btn";
+    editBtn.title = "Edit time";
+    editBtn.innerHTML = '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M12 20h9"/><path d="M16.5 3.5a2.1 2.1 0 0 1 3 3L7 19l-4 1 1-4z"/></svg>';
+    editBtn.addEventListener("click", function(){ openEditSession(session.id); });
+    actions.appendChild(editBtn);
+
+    const delBtn = document.createElement("button");
+    delBtn.className = "row-icon-btn danger";
+    delBtn.title = "Delete";
+    delBtn.innerHTML = '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M3 6h18"/><path d="M8 6V4h8v2"/><path d="M19 6l-1 14H6L5 6"/></svg>';
+    delBtn.addEventListener("click", function(){
+      openConfirm("Delete this session?", "This study session will be permanently removed.", async function(){
+        const ok = await dbDeleteSession(session.id);
+        if(!ok) return;
+        state.sessions = state.sessions.filter(function(x){ return x.id !== session.id; });
+        renderAll();
+        toast("Session deleted");
+      });
+    });
+    actions.appendChild(delBtn);
+
+    row.appendChild(actions);
+    return row;
+  }
+
+  function openEditSession(id){
+    const s = state.sessions.find(function(x){ return x.id === id; });
+    if(!s) return;
+    document.getElementById("editDate").value = s.date;
+    document.getElementById("editStart").value = s.start;
+    document.getElementById("editEnd").value = s.end;
+    document.getElementById("editNotes").value = s.notes || "";
+    document.getElementById("modalEditSession").dataset.editId = id;
+    openModal("modalEditSession");
+  }
+  document.getElementById("editSave").addEventListener("click", async function(){
+    const id = document.getElementById("modalEditSession").dataset.editId;
+    const s = state.sessions.find(function(x){ return x.id === id; });
+    if(!s) return;
+    const date = document.getElementById("editDate").value;
+    const start = document.getElementById("editStart").value;
+    const end = document.getElementById("editEnd").value;
+    const notes = document.getElementById("editNotes").value;
+    const mins = durationMinutesBetween(start, end);
+    if(!date || !mins){ toast("End time must be after start time."); return; }
+    const ok = await dbUpdateSession(id, { date:date, start:start, end:end, notes:notes, durationSec: mins*60 });
+    if(!ok) return;
+    s.date = date; s.start = start; s.end = end; s.notes = notes; s.durationSec = mins*60;
+    closeModal();
+    renderAll();
+    toast("Session updated");
+  });
+
+  /* ======================================================================
+     RECENT (Timer view)
+     =================================================================== */
+  function renderRecent(){
+    const list = document.getElementById("recentList");
+    const empty = document.getElementById("recentEmpty");
+    const today = todayStr();
+    const todays = state.sessions.filter(function(s){ return s.date === today; }).slice(0,5);
+    list.innerHTML = "";
+    todays.forEach(function(s){ list.appendChild(buildSessionRow(s, true)); });
+    empty.style.display = todays.length ? "none" : "block";
+
+    const totalSec = state.sessions.filter(function(s){ return s.date === today; })
+      .reduce(function(sum, s){ return sum + s.durationSec; }, 0);
+    document.getElementById("timerToday").textContent =
+      totalSec > 0 ? ("Today: " + minutesToLabel(totalSec/60)) : "No sessions yet today";
+  }
+
+  /* ======================================================================
+     MANUAL ADD SESSION
+     =================================================================== */
+  document.getElementById("btnManualAdd").addEventListener("click", function(){
+    document.getElementById("manDate").value = todayStr();
+    document.getElementById("manStart").value = "";
+    document.getElementById("manEnd").value = "";
+    document.getElementById("manNotes").value = "";
+    openModal("modalManual");
+  });
+  document.getElementById("manSave").addEventListener("click", async function(){
+    const date = document.getElementById("manDate").value;
+    const start = document.getElementById("manStart").value;
+    const end = document.getElementById("manEnd").value;
+    const notes = document.getElementById("manNotes").value;
+    const mins = durationMinutesBetween(start, end);
+    if(!date || !mins){ toast("End time must be after start time."); return; }
+    const saved = await dbInsertSession({ date:date, start:start, end:end, durationSec:mins*60, notes:notes, manual:true });
+    if(!saved) return;
+    state.sessions.unshift(saved);
+    closeModal();
+    renderAll();
+    toast("Session added");
+  });
+
+  /* ======================================================================
+     PLANNER
+     =================================================================== */
+  let currentPlanDate = todayStr();
+  const plDateInput = document.getElementById("plDateInput");
+  plDateInput.value = currentPlanDate;
+
+  function renderPlanner(){
+    document.getElementById("plannerDow").textContent = dowLabel(currentPlanDate);
+    document.getElementById("plannerDate").textContent = formatDateHuman(currentPlanDate) === "Today" ? "Today's plan" : formatDateHuman(currentPlanDate);
+    plDateInput.value = currentPlanDate;
+
+    const items = state.plans.filter(function(p){ return p.date === currentPlanDate; })
+      .sort(function(a,b){ return timeToMinutes(a.start) - timeToMinutes(b.start); });
+
+    const list = document.getElementById("planList");
+    const empty = document.getElementById("planEmpty");
+    list.innerHTML = "";
+
+    let totalMin = 0;
+    items.forEach(function(p){
+      const mins = durationMinutesBetween(p.start, p.end) || 0;
+      totalMin += mins;
+
+      const row = document.createElement("div");
+      row.className = "session-row" + (p.done ? " row-done" : "");
+
+      const bar = document.createElement("span");
+      bar.className = "accent-bar";
+      bar.style.background = subjectColor(p.subject);
+      row.appendChild(bar);
+
+      const main = document.createElement("div");
+      main.className = "row-main";
+      const rt = document.createElement("div");
+      rt.className = "row-time";
+      rt.textContent = p.subject || "Untitled";
+      const rs = document.createElement("div");
+      rs.className = "row-sub";
+      rs.textContent = p.start + " – " + p.end;
+      main.appendChild(rt); main.appendChild(rs);
+      row.appendChild(main);
+
+      const badge = document.createElement("span");
+      badge.className = "badge";
+      badge.textContent = minutesToLabel(mins);
+      row.appendChild(badge);
+
+      const actions = document.createElement("div");
+      actions.className = "row-actions";
+
+      const doneBtn = document.createElement("button");
+      doneBtn.className = "row-icon-btn";
+      doneBtn.title = p.done ? "Mark as not done" : "Mark as done";
+      doneBtn.innerHTML = '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M20 6L9 17l-5-5"/></svg>';
+      doneBtn.addEventListener("click", function(){
+        p.done = !p.done;
+        renderPlanner();
+        dbUpdatePlan(p.id, { done: p.done });
+      });
+      actions.appendChild(doneBtn);
+
+      const editBtn = document.createElement("button");
+      editBtn.className = "row-icon-btn";
+      editBtn.title = "Edit";
+      editBtn.innerHTML = '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M12 20h9"/><path d="M16.5 3.5a2.1 2.1 0 0 1 3 3L7 19l-4 1 1-4z"/></svg>';
+      editBtn.addEventListener("click", function(){ openEditPlan(p.id); });
+      actions.appendChild(editBtn);
+
+      const delBtn = document.createElement("button");
+      delBtn.className = "row-icon-btn danger";
+      delBtn.title = "Delete";
+      delBtn.innerHTML = '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M3 6h18"/><path d="M8 6V4h8v2"/><path d="M19 6l-1 14H6L5 6"/></svg>';
+      delBtn.addEventListener("click", function(){
+        openConfirm("Delete this plan?", "This planned session will be removed.", async function(){
+          const ok = await dbDeletePlan(p.id);
+          if(!ok) return;
+          state.plans = state.plans.filter(function(x){ return x.id !== p.id; });
+          renderPlanner();
+          toast("Plan deleted");
+        });
+      });
+      actions.appendChild(delBtn);
+
+      row.appendChild(actions);
+      list.appendChild(row);
+    });
+
+    empty.style.display = items.length ? "none" : "block";
+    document.getElementById("plDayTotal").textContent = minutesToLabel(totalMin) + " planned";
+  }
+
+  function openEditPlan(id){
+    const p = state.plans.find(function(x){ return x.id === id; });
+    if(!p) return;
+    document.getElementById("planModalTitle").textContent = "Edit plan";
+    document.getElementById("planSubject").value = p.subject;
+    document.getElementById("planDate").value = p.date;
+    document.getElementById("planStart").value = p.start;
+    document.getElementById("planEnd").value = p.end;
+    document.getElementById("modalPlan").dataset.editId = id;
+    openModal("modalPlan");
+  }
+
+  document.getElementById("btnAddPlan").addEventListener("click", function(){
+    document.getElementById("planModalTitle").textContent = "Add to plan";
+    document.getElementById("planSubject").value = "";
+    document.getElementById("planDate").value = currentPlanDate;
+    document.getElementById("planStart").value = "";
+    document.getElementById("planEnd").value = "";
+    delete document.getElementById("modalPlan").dataset.editId;
+    openModal("modalPlan");
+  });
+  document.getElementById("planSave").addEventListener("click", async function(){
+    const subject = document.getElementById("planSubject").value.trim();
+    const date = document.getElementById("planDate").value;
+    const start = document.getElementById("planStart").value;
+    const end = document.getElementById("planEnd").value;
+    if(!subject){ toast("Give this plan a subject."); return; }
+    if(!date || !durationMinutesBetween(start,end)){ toast("End time must be after start time."); return; }
+
+    const editId = document.getElementById("modalPlan").dataset.editId;
+    if(editId){
+      const ok = await dbUpdatePlan(editId, { subject:subject, date:date, start:start, end:end });
+      if(!ok) return;
+      const p = state.plans.find(function(x){ return x.id === editId; });
+      if(p){ p.subject=subject; p.date=date; p.start=start; p.end=end; }
+    } else {
+      const saved = await dbInsertPlan({ subject:subject, date:date, start:start, end:end, done:false });
+      if(!saved) return;
+      state.plans.push(saved);
+    }
+    closeModal();
+    currentPlanDate = date;
+    renderPlanner();
+    toast(editId ? "Plan updated" : "Plan added");
+  });
+
+  document.getElementById("plDatePrev").addEventListener("click", function(){
+    currentPlanDate = addDays(currentPlanDate, -1); renderPlanner();
+  });
+  document.getElementById("plDateNext").addEventListener("click", function(){
+    currentPlanDate = addDays(currentPlanDate, 1); renderPlanner();
+  });
+  document.getElementById("plDateToday").addEventListener("click", function(){
+    currentPlanDate = todayStr(); renderPlanner();
+  });
+  plDateInput.addEventListener("change", function(){
+    if(plDateInput.value){ currentPlanDate = plDateInput.value; renderPlanner(); }
+  });
+
+  /* ======================================================================
+     HISTORY
+     =================================================================== */
+  function renderHistory(filter){
+    filter = (filter||"").trim().toLowerCase();
+    const container = document.getElementById("historyList");
+    const empty = document.getElementById("historyEmpty");
+    container.innerHTML = "";
+
+    const byDate = {};
+    state.sessions.forEach(function(s){
+      if(!byDate[s.date]) byDate[s.date] = [];
+      byDate[s.date].push(s);
+    });
+    let dates = Object.keys(byDate).sort(function(a,b){ return a < b ? 1 : -1; });
+
+    let shown = 0;
+    dates.forEach(function(date){
+      let items = byDate[date].sort(function(a,b){ return timeToMinutes(b.start) - timeToMinutes(a.start); });
+      if(filter){
+        items = items.filter(function(s){ return (s.notes||"").toLowerCase().includes(filter); });
+      }
+      if(!items.length) return;
+      shown += items.length;
+
+      const group = document.createElement("div");
+      group.className = "history-group";
+
+      const head = document.createElement("div");
+      head.className = "history-group-head";
+      const totalSec = items.reduce(function(sum,s){ return sum + s.durationSec; }, 0);
+      head.innerHTML =
+        '<div style="display:flex;align-items:center;gap:8px;">' +
+          '<svg class="chevron" width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round"><path d="M6 9l6 6 6-6"/></svg>' +
+          '<h3>' + escapeHtml(formatDateHuman(date)) + '</h3>' +
+        '</div>' +
+        '<span class="hg-total">' + minutesToLabel(totalSec/60) + '</span>';
+      head.addEventListener("click", function(){ group.classList.toggle("collapsed"); });
+
+      const body = document.createElement("div");
+      body.className = "history-group-body session-list";
+      items.forEach(function(s){ body.appendChild(buildSessionRow(s)); });
+
+      group.appendChild(head);
+      group.appendChild(body);
+      container.appendChild(group);
+    });
+
+    empty.style.display = shown ? "none" : "block";
+    empty.textContent = filter ? "No sessions match your search." : "No study sessions recorded yet.";
+  }
+  document.getElementById("historySearch").addEventListener("input", debounce(function(e){
+    renderHistory(e.target.value);
+  }, 150));
+
+  /* ======================================================================
+     STATS
+     =================================================================== */
+  function computeWeekData(){
+    const days = [];
+    for(let i=6;i>=0;i--){
+      const d = addDays(todayStr(), -i);
+      const totalSec = state.sessions.filter(function(s){ return s.date === d; })
+        .reduce(function(sum,s){ return sum + s.durationSec; }, 0);
+      days.push({ date:d, minutes: totalSec/60,
+        label: dateStrToDate(d).toLocaleDateString(undefined, { weekday:"short" }) });
+    }
+    return days;
+  }
+  function computeSubjectData(){
+    const totals = {};
+    state.sessions.forEach(function(s){
+      const key = (s.notes||"").trim() || "Untitled";
+      totals[key] = (totals[key]||0) + s.durationSec;
+    });
+    let entries = Object.keys(totals).map(function(k){ return { name:k, sec: totals[k] }; });
+    entries.sort(function(a,b){ return b.sec - a.sec; });
+    if(entries.length > 6){
+      const top = entries.slice(0,6);
+      const otherSec = entries.slice(6).reduce(function(sum,e){ return sum + e.sec; }, 0);
+      top.push({ name:"Other", sec: otherSec });
+      entries = top;
+    }
+    return entries;
+  }
+  function computeStreak(){
+    let pointer = todayStr();
+    const todayTotal = state.sessions.filter(function(s){ return s.date === pointer; })
+      .reduce(function(sum,s){ return sum + s.durationSec; }, 0);
+    if(todayTotal === 0) pointer = addDays(pointer, -1);
+    let streak = 0;
+    while(true){
+      const total = state.sessions.filter(function(s){ return s.date === pointer; })
+        .reduce(function(sum,s){ return sum + s.durationSec; }, 0);
+      if(total <= 0) break;
+      streak++;
+      pointer = addDays(pointer, -1);
+      if(streak > 3650) break;
+    }
+    return streak;
+  }
+
+  function drawWeekChart(){
+    const svg = document.getElementById("weekChart");
+    const data = computeWeekData();
+    const W = 640, H = 200, padBottom = 28, padTop = 18, barGap = 14;
+    const maxVal = Math.max(60, Math.max.apply(null, data.map(function(d){ return d.minutes; })) * 1.2);
+    const barW = (W - barGap*(data.length-1)) / data.length;
+
+    let svgContent = "";
+    data.forEach(function(d, i){
+      const x = i * (barW + barGap);
+      const h = Math.max(3, (d.minutes / maxVal) * (H - padTop - padBottom));
+      const y = H - padBottom - h;
+      svgContent += '<rect class="bar" x="'+x+'" y="'+y+'" width="'+barW+'" height="'+h+'" rx="6"><title>'+d.label+': '+minutesToLabel(d.minutes)+'</title></rect>';
+      svgContent += '<text class="bar-label" x="'+(x+barW/2)+'" y="'+(H-10)+'" text-anchor="middle">'+d.label+'</text>';
+      if(d.minutes > 0){
+        svgContent += '<text class="bar-value" x="'+(x+barW/2)+'" y="'+(y-6)+'" text-anchor="middle">'+minutesToLabel(d.minutes)+'</text>';
+      }
+    });
+    svg.innerHTML = svgContent;
+  }
+
+  function drawSubjectDonut(){
+    const svg = document.getElementById("subjectDonut");
+    const legend = document.getElementById("subjectLegend");
+    const data = computeSubjectData();
+    const cx=110, cy=110, r=80, sw=24;
+    const circumference = 2*Math.PI*r;
+    const total = data.reduce(function(sum,d){ return sum + d.sec; }, 0);
+
+    legend.innerHTML = "";
+
+    if(total === 0){
+      svg.innerHTML = '<circle cx="'+cx+'" cy="'+cy+'" r="'+r+'" fill="none" stroke="#15172a" stroke-width="'+sw+'"/>' +
+        '<text class="donut-center-val" x="'+cx+'" y="'+(cy+2)+'">0h</text>' +
+        '<text class="donut-center-label" x="'+cx+'" y="'+(cy+18)+'">tracked</text>';
+      const li = document.createElement("p");
+      li.className = "muted";
+      li.textContent = "Log a session to see your subject breakdown.";
+      legend.appendChild(li);
+      return;
+    }
+
+    let cumulative = 0;
+    let svgContent = '<g transform="rotate(-90 '+cx+' '+cy+')">';
+    data.forEach(function(d){
+      const fraction = d.sec / total;
+      const len = fraction * circumference;
+      const offset = -(cumulative * circumference);
+      const color = d.name === "Other" ? "#3a3c58" : subjectColor(d.name);
+      svgContent += '<circle cx="'+cx+'" cy="'+cy+'" r="'+r+'" fill="none" stroke="'+color+'" stroke-width="'+sw+'" ' +
+        'stroke-dasharray="'+len+' '+(circumference-len)+'" stroke-dashoffset="'+offset+'"><title>'+escapeHtml(d.name)+': '+minutesToLabel(d.sec/60)+'</title></circle>';
+      cumulative += fraction;
+
+      const row = document.createElement("div");
+      row.className = "legend-row";
+      const dot = document.createElement("span");
+      dot.className = "dot";
+      dot.style.background = color;
+      const name = document.createElement("span");
+      name.className = "lr-name";
+      name.textContent = d.name;
+      const val = document.createElement("span");
+      val.className = "lr-val";
+      val.textContent = minutesToLabel(d.sec/60) + " · " + Math.round(fraction*100) + "%";
+      row.appendChild(dot); row.appendChild(name); row.appendChild(val);
+      legend.appendChild(row);
+    });
+    svgContent += '</g>';
+    const totalH = total/3600;
+    svgContent += '<text class="donut-center-val" x="'+cx+'" y="'+(cy+2)+'">' + (totalH>=10?Math.round(totalH):totalH.toFixed(1)) + 'h</text>';
+    svgContent += '<text class="donut-center-label" x="'+cx+'" y="'+(cy+18)+'">tracked</text>';
+    svg.innerHTML = svgContent;
+  }
+
+  function renderStats(){
+    const today = todayStr();
+    const todaySec = state.sessions.filter(function(s){ return s.date===today; }).reduce(function(sum,s){ return sum+s.durationSec; },0);
+    const weekStart = addDays(today, -6);
+    const weekSec = state.sessions.filter(function(s){ return s.date >= weekStart && s.date <= today; }).reduce(function(sum,s){ return sum+s.durationSec; },0);
+    const allSec = state.sessions.reduce(function(sum,s){ return sum+s.durationSec; },0);
+
+    document.getElementById("statToday").textContent = minutesToLabel(todaySec/60);
+    document.getElementById("statWeek").textContent = minutesToLabel(weekSec/60);
+    document.getElementById("statTotal").textContent = minutesToLabel(allSec/60);
+    document.getElementById("statStreak").textContent = computeStreak() + "d";
+
+    drawWeekChart();
+    drawSubjectDonut();
+  }
+
+  /* ======================================================================
+     SETTINGS
+     =================================================================== */
+  const THEMES = [
+    { key:"indigo", idle:"#4f5fe6", active:"#ffb454", name:"Indigo / Amber" },
+    { key:"teal", idle:"#2bbfae", active:"#ff8a5c", name:"Teal / Coral" },
+    { key:"violet", idle:"#9163f2", active:"#c8ec5a", name:"Violet / Lime" },
+    { key:"slate", idle:"#7e8aa6", active:"#ff6b81", name:"Slate / Rose" }
+  ];
+
+  function applyTheme(key){
+    if(key === "indigo") document.documentElement.removeAttribute("data-theme");
+    else document.documentElement.setAttribute("data-theme", key);
+  }
+
+  function renderSettings(){
+    document.getElementById("accountEmail").textContent = currentUser ? currentUser.email : "—";
+
+    const grid = document.getElementById("themeGrid");
+    grid.innerHTML = "";
+    THEMES.forEach(function(t){
+      const sw = document.createElement("button");
+      sw.className = "theme-swatch" + (state.settings.theme === t.key ? " active" : "");
+      sw.title = t.name;
+      sw.innerHTML = '<span class="swatch-dots">' +
+        '<span class="swatch-dot" style="background:'+t.idle+'"></span>' +
+        '<span class="swatch-dot" style="background:'+t.active+'"></span>' +
+      '</span>';
+      sw.addEventListener("click", function(){
+        state.settings.theme = t.key;
+        applyTheme(t.key);
+        renderSettings();
+        dbUpdateTheme(t.key);
+      });
+      grid.appendChild(sw);
+    });
+  }
+
+  document.getElementById("btnSignOut").addEventListener("click", async function(){
+    await sb.auth.signOut();
+  });
+
+  document.getElementById("btnExport").addEventListener("click", function(){
+    const blob = new Blob([JSON.stringify(state, null, 2)], { type:"application/json" });
+    const url = URL.createObjectURL(blob);
+    const a = document.createElement("a");
+    a.href = url;
+    a.download = "studytrack-backup-" + todayStr() + ".json";
+    document.body.appendChild(a);
+    a.click();
+    a.remove();
+    URL.revokeObjectURL(url);
+    toast("Backup downloaded");
+  });
+
+  const fileImport = document.getElementById("fileImport");
+  document.getElementById("btnImport").addEventListener("click", function(){ fileImport.click(); });
+  fileImport.addEventListener("change", function(){
+    const file = fileImport.files[0];
+    if(!file) return;
+    const reader = new FileReader();
+    reader.onload = function(){
+      let parsed;
+      try{ parsed = JSON.parse(reader.result); }
+      catch(e){ toast("That file isn't a valid backup."); fileImport.value=""; return; }
+      if(!parsed || !Array.isArray(parsed.sessions) || !Array.isArray(parsed.plans)){
+        toast("That file isn't a valid StudyTrack backup.");
+        fileImport.value = "";
+        return;
+      }
+      openConfirm("Import this backup?", "This will replace all sessions and plans currently stored in your account, on every device.", async function(){
+        try{
+          await dbImportBackup(parsed);
+          await loadAllData();
+          renderAll();
+          toast("Backup imported");
+        }catch(e){
+          console.error(e);
+          toast("Import failed — see console for details.");
+        }
+      });
+      fileImport.value = "";
+    };
+    reader.readAsText(file);
+  });
+
+  document.getElementById("btnClearAll").addEventListener("click", function(){
+    openConfirm("Clear all data?", "Every session and plan in your account, on every device, will be permanently deleted.", async function(){
+      await dbWipeAll();
+      await loadAllData();
+      renderAll();
+      toast("All data cleared");
+    });
+  });
+
+  /* ======================================================================
+     RENDER ALL
+     =================================================================== */
+  function renderAll(){
+    renderRecent();
+    renderPlanner();
+    renderHistory(document.getElementById("historySearch").value);
+    renderStats();
+    renderSettings();
+  }
+
+  /* ======================================================================
+     AUTH
+     =================================================================== */
+  const bootLoading = document.getElementById("bootLoading");
+  const authScreenEl = document.getElementById("authScreen");
+  const shellEl = document.querySelector(".shell");
+  let authMode = "signin";
+  let enteredUserId = null;
+
+  function updateAuthUI(){
+    const title = document.getElementById("authTitle");
+    const submit = document.getElementById("authSubmit");
+    const toggleText = document.getElementById("authToggleText");
+    const toggleBtn = document.getElementById("authToggleBtn");
+    if(authMode === "signin"){
+      title.textContent = "Sign in to StudyTrack";
+      submit.textContent = "Sign in";
+      toggleText.textContent = "Don't have an account?";
+      toggleBtn.textContent = "Sign up";
+    } else {
+      title.textContent = "Create your account";
+      submit.textContent = "Sign up";
+      toggleText.textContent = "Already have an account?";
+      toggleBtn.textContent = "Sign in";
+    }
+    document.getElementById("authError").textContent = "";
+  }
+  document.getElementById("authToggleBtn").addEventListener("click", function(){
+    authMode = authMode === "signin" ? "signup" : "signin";
+    updateAuthUI();
+  });
+  document.getElementById("authPassword").addEventListener("keydown", function(e){
+    if(e.key === "Enter") document.getElementById("authSubmit").click();
+  });
+  document.getElementById("authSubmit").addEventListener("click", async function(){
+    const email = document.getElementById("authEmail").value.trim();
+    const password = document.getElementById("authPassword").value;
+    const errEl = document.getElementById("authError");
+    errEl.textContent = "";
+    if(!email || !password){ errEl.textContent = "Enter an email and password."; return; }
+
+    const submit = document.getElementById("authSubmit");
+    submit.disabled = true;
+    const origText = submit.textContent;
+    submit.textContent = "Please wait…";
+    try{
+      let res = authMode === "signin"
+        ? await sb.auth.signInWithPassword({ email, password })
+        : await sb.auth.signUp({ email, password });
+
+      if(res.error){ errEl.textContent = res.error.message; return; }
+
+      if(authMode === "signup" && !res.data.session){
+        // Confirmation got re-enabled on the project, or some other edge case — try signing in directly.
+        res = await sb.auth.signInWithPassword({ email, password });
+        if(res.error){ errEl.textContent = res.error.message; return; }
+      }
+    } finally {
+      submit.disabled = false;
+      submit.textContent = origText;
+    }
+  });
+
+  function showAuthScreen(){
+    bootLoading.style.display = "none";
+    shellEl.style.display = "none";
+    if(realtimeChannel){ sb.removeChannel(realtimeChannel); realtimeChannel = null; }
+    enteredUserId = null;
+    authScreenEl.classList.add("open");
+    document.getElementById("authEmail").value = "";
+    document.getElementById("authPassword").value = "";
+    updateAuthUI();
+  }
+
+  async function enterApp(){
+    if(enteredUserId === currentUser.id){
+      // Just a token refresh — account is already loaded and rendered.
+      document.getElementById("accountEmail").textContent = currentUser.email;
+      return;
+    }
+    enteredUserId = currentUser.id;
+    bootLoading.style.display = "none";
+    authScreenEl.classList.remove("open");
+    shellEl.style.display = "flex";
+    document.getElementById("manDate").value = todayStr();
+    await loadAllData();
+    renderAll();
+    subscribeRealtime(currentUser.id);
+  }
+
+  sb.auth.onAuthStateChange(function(event, session){
+    if(session && session.user){
+      currentUser = session.user;
+      enterApp();
+    } else {
+      currentUser = null;
+      showAuthScreen();
+    }
+  });
+
+})();
+</script>
+
+</body>
+</html>
