@@ -372,6 +372,8 @@
   .row-main{ flex:1; min-width:0; }
   .row-time{ font-size:14px; color:var(--c-paper); }
   .row-sub{ font-size:12px; color:var(--c-fog); margin-top:2px; font-family:var(--font-mono); }
+  .row-pending .dot{ box-shadow:0 0 0 2px var(--accent-active); animation:dotPulse 1.8s ease-in-out infinite; }
+  .row-pending .row-sub::after{ content:" · pending"; color:var(--accent-active); opacity:.7; }
   .row-notes{
     flex:1.2; min-width:0; background:transparent; border:none; color:var(--c-mist);
     font-size:13px; text-align:right; padding:6px 4px;
@@ -555,6 +557,128 @@
   /* ========================================================================
      RESPONSIVE
      ===================================================================== */
+  /* ========================================================================
+     ALIVE THEME
+     ===================================================================== */
+  #aliveCanvas{
+    position:fixed; inset:0; z-index:0; pointer-events:none;
+    opacity:0; transition:opacity 1.2s ease;
+  }
+  body.theme-alive #aliveCanvas{ opacity:1; }
+
+  /* rail gets a slow gradient sweep */
+  body.theme-alive .rail{
+    background:transparent;
+    position:relative; overflow:hidden;
+  }
+  body.theme-alive .rail::before{
+    content:""; position:absolute; inset:0; z-index:-1;
+    background:linear-gradient(180deg,
+      rgba(79,95,230,.22) 0%,
+      rgba(145,99,242,.14) 40%,
+      rgba(255,180,84,.1) 80%,
+      rgba(61,220,151,.12) 100%);
+    animation:railDrift 14s ease-in-out infinite alternate;
+  }
+  @keyframes railDrift{
+    0%  { filter:hue-rotate(0deg)   brightness(1); }
+    50% { filter:hue-rotate(60deg)  brightness(1.15); }
+    100%{ filter:hue-rotate(-40deg) brightness(.95); }
+  }
+
+  /* panels pulse with a faint color border */
+  body.theme-alive .panel{
+    animation:panelGlow 8s ease-in-out infinite;
+    animation-delay:var(--panel-delay, 0s);
+  }
+  @keyframes panelGlow{
+    0%,100%{ border-color:rgba(79,95,230,.18); box-shadow:0 0 0 0 transparent; }
+    50%     { border-color:rgba(145,99,242,.35); box-shadow:0 0 20px -8px rgba(145,99,242,.2); }
+  }
+
+  /* stat cards each drift at a slightly different phase */
+  body.theme-alive .stat-card:nth-child(1){ --panel-delay:0s; }
+  body.theme-alive .stat-card:nth-child(2){ --panel-delay:2s; }
+  body.theme-alive .stat-card:nth-child(3){ --panel-delay:4s; }
+  body.theme-alive .stat-card:nth-child(4){ --panel-delay:6s; }
+  body.theme-alive .stat-card{
+    animation:panelGlow 8s ease-in-out infinite;
+    animation-delay:var(--panel-delay,0s);
+  }
+
+  /* floating orbs behind the stage */
+  body.theme-alive .stage::before{
+    content:""; position:fixed; z-index:0; pointer-events:none;
+    width:520px; height:520px; border-radius:50%;
+    background:radial-gradient(circle, rgba(79,95,230,.07) 0%, transparent 70%);
+    top:-80px; left:-60px;
+    animation:orbDrift1 22s ease-in-out infinite;
+  }
+  body.theme-alive .stage::after{
+    content:""; position:fixed; z-index:0; pointer-events:none;
+    width:400px; height:400px; border-radius:50%;
+    background:radial-gradient(circle, rgba(255,100,120,.05) 0%, transparent 70%);
+    bottom:-100px; right:-80px;
+    animation:orbDrift2 18s ease-in-out infinite;
+  }
+  body.theme-alive .view{ position:relative; z-index:1; }
+
+  @keyframes orbDrift1{
+    0%  { transform:translate(0px, 0px)   scale(1); }
+    33% { transform:translate(60px,-40px) scale(1.1); }
+    66% { transform:translate(-30px,50px) scale(.92); }
+    100%{ transform:translate(0px, 0px)   scale(1); }
+  }
+  @keyframes orbDrift2{
+    0%  { transform:translate(0px,  0px)  scale(1); }
+    40% { transform:translate(-50px,30px) scale(1.08); }
+    70% { transform:translate(40px,-20px) scale(.95); }
+    100%{ transform:translate(0px,  0px)  scale(1); }
+  }
+
+  /* session rows shimmer slightly */
+  body.theme-alive .session-row{
+    transition:background .4s ease, border-color .4s ease;
+  }
+  body.theme-alive .session-row:hover{
+    background:rgba(79,95,230,.06);
+    border-bottom-color:rgba(79,95,230,.2);
+  }
+
+  /* the whole site slowly hue-shifts */
+  body.theme-alive{
+    animation:siteHueDrift 30s ease-in-out infinite;
+  }
+  @keyframes siteHueDrift{
+    0%  { filter:hue-rotate(0deg); }
+    25% { filter:hue-rotate(18deg); }
+    50% { filter:hue-rotate(-12deg); }
+    75% { filter:hue-rotate(28deg); }
+    100%{ filter:hue-rotate(0deg); }
+  }
+
+  /* special swatch for alive option */
+  .theme-swatch.alive-swatch{
+    background:linear-gradient(135deg, #0a0b1c 0%, #1a1040 50%, #0a0b1c 100%);
+    overflow:hidden; position:relative;
+  }
+  .theme-swatch.alive-swatch::before{
+    content:""; position:absolute; inset:0;
+    background:conic-gradient(from 0deg,
+      rgba(79,95,230,.6), rgba(145,99,242,.6),
+      rgba(255,100,120,.5), rgba(255,180,84,.5),
+      rgba(61,220,151,.5), rgba(79,95,230,.6));
+    animation:swatchSpin 4s linear infinite;
+    opacity:.5;
+  }
+  .theme-swatch.alive-swatch span{
+    position:relative; z-index:1; font-size:18px; line-height:1;
+  }
+  @keyframes swatchSpin{ to{ transform:rotate(360deg); } }
+
+  /* ========================================================================
+     RESPONSIVE
+     ===================================================================== */
   @media (max-width: 880px){
     .stage{ padding:28px 22px 48px; }
     .stat-cards{ grid-template-columns:repeat(2,1fr); }
@@ -569,6 +693,8 @@
 </style>
 </head>
 <body>
+
+  <canvas id="aliveCanvas"></canvas>
 
   <div class="boot-loading" id="bootLoading"><div class="boot-logo">ST</div></div>
 
@@ -613,10 +739,10 @@
       </button>
 
       <div class="rail-spacer"></div>
-      <div class="rail-pulse" title="Timer status"></div>
       <button class="rail-btn" data-view="settings" title="Settings">
         <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="3"/><path d="M19.4 13a7.97 7.97 0 0 0 0-2l1.8-1.4-2-3.4-2.1.6a8 8 0 0 0-1.7-1l-.3-2.2H9.9l-.3 2.2a8 8 0 0 0-1.7 1l-2.1-.6-2 3.4L5.6 11a7.97 7.97 0 0 0 0 2l-1.8 1.4 2 3.4 2.1-.6c.5.4 1.1.75 1.7 1l.3 2.2h4.2l.3-2.2a8 8 0 0 0 1.7-1l2.1.6 2-3.4L19.4 13z"/></svg>
       </button>
+      <div class="rail-pulse" title="Timer status"></div>
     </nav>
 
     <main class="stage">
@@ -1074,6 +1200,7 @@
 
   /* ---- local-first mutators: state updates instantly, sync happens behind it --- */
   function addSessionLocal(draft){
+    markLocalWrite();
     const id = localId();
     const session = Object.assign({ id:id, pending:true }, draft);
     state.sessions.unshift(session);
@@ -1084,6 +1211,7 @@
   function updateSessionLocal(id, fields){
     const s = state.sessions.find(function(x){ return x.id === id; });
     if(!s) return;
+    markLocalWrite();
     Object.assign(s, fields);
     s.pending = true;
     const existing = queueMap[id];
@@ -1092,6 +1220,7 @@
     scheduleFlush();
   }
   function deleteSessionLocal(id){
+    markLocalWrite();
     const existing = queueMap[id];
     const isNew = existing ? existing.isNew : isLocalId(id);
     state.sessions = state.sessions.filter(function(x){ return x.id !== id; });
@@ -1099,6 +1228,7 @@
     scheduleFlush();
   }
   function addPlanLocal(draft){
+    markLocalWrite();
     const id = localId();
     const plan = Object.assign({ id:id, pending:true }, draft);
     state.plans.push(plan);
@@ -1109,6 +1239,7 @@
   function updatePlanLocal(id, fields){
     const p = state.plans.find(function(x){ return x.id === id; });
     if(!p) return;
+    markLocalWrite();
     Object.assign(p, fields);
     p.pending = true;
     const existing = queueMap[id];
@@ -1117,6 +1248,7 @@
     scheduleFlush();
   }
   function deletePlanLocal(id){
+    markLocalWrite();
     const existing = queueMap[id];
     const isNew = existing ? existing.isNew : isLocalId(id);
     state.plans = state.plans.filter(function(x){ return x.id !== id; });
@@ -1124,6 +1256,7 @@
     scheduleFlush();
   }
   function updateThemeLocal(theme){
+    markLocalWrite();
     state.settings.theme = theme;
     applyTheme(theme);
     queueUpsert("user_settings", "__settings__", { user_id:currentUser.id, theme:theme }, false);
@@ -1205,18 +1338,39 @@
     }
   }
 
-  /* ---- realtime: pick up changes made from your other device ---------------*/
+  /* ---- realtime: pick up changes made from your OTHER device only ----------*/
+  let localWriteCount = 0; // incremented before every local write, checked in realtime handler
+
+  function markLocalWrite(){
+    localWriteCount++;
+  }
+
   const refetchAndRender = debounce(async function(){
+    // If there are pending local writes, this event was almost certainly
+    // triggered by THIS tab — skip the re-render so focus isn't lost.
+    if(localWriteCount > 0){
+      localWriteCount = 0;
+      return;
+    }
+    // No local writes in flight → this came from another device → sync it.
+    const focused = document.activeElement;
+    const focusedId   = focused && focused.dataset && focused.dataset.id;
+    const focusedName = focused && focused.tagName;
     await loadAllData();
     renderAll();
-  }, 400);
+    // Restore focus if a notes input was active
+    if(focusedId){
+      const restored = document.querySelector('.row-notes[data-id="'+focusedId+'"]');
+      if(restored) restored.focus();
+    }
+  }, 800);
 
   function subscribeRealtime(userId){
     if(realtimeChannel){ sb.removeChannel(realtimeChannel); realtimeChannel = null; }
     realtimeChannel = sb.channel("studytrack-sync-" + userId)
-      .on("postgres_changes", { event:"*", schema:"public", table:"sessions", filter:"user_id=eq."+userId }, refetchAndRender)
-      .on("postgres_changes", { event:"*", schema:"public", table:"plans", filter:"user_id=eq."+userId }, refetchAndRender)
-      .on("postgres_changes", { event:"*", schema:"public", table:"user_settings", filter:"user_id=eq."+userId }, refetchAndRender)
+      .on("postgres_changes", { event:"*", schema:"public", table:"sessions",     filter:"user_id=eq."+userId }, refetchAndRender)
+      .on("postgres_changes", { event:"*", schema:"public", table:"plans",        filter:"user_id=eq."+userId }, refetchAndRender)
+      .on("postgres_changes", { event:"*", schema:"public", table:"user_settings",filter:"user_id=eq."+userId }, refetchAndRender)
       .subscribe();
   }
 
@@ -1886,14 +2040,129 @@
      =================================================================== */
   const THEMES = [
     { key:"indigo", idle:"#4f5fe6", active:"#ffb454", name:"Indigo / Amber" },
-    { key:"teal", idle:"#2bbfae", active:"#ff8a5c", name:"Teal / Coral" },
+    { key:"teal",   idle:"#2bbfae", active:"#ff8a5c", name:"Teal / Coral" },
     { key:"violet", idle:"#9163f2", active:"#c8ec5a", name:"Violet / Lime" },
-    { key:"slate", idle:"#7e8aa6", active:"#ff6b81", name:"Slate / Rose" }
+    { key:"slate",  idle:"#7e8aa6", active:"#ff6b81", name:"Slate / Rose" },
+    { key:"alive",  idle:null,      active:null,       name:"Alive" }
   ];
 
+  /* ---- particle canvas -------------------------------------------------- */
+  let aliveRAF = null;
+
+  function startAliveCanvas(){
+    const canvas = document.getElementById("aliveCanvas");
+    if(!canvas) return;
+    const ctx = canvas.getContext("2d");
+
+    function resize(){
+      canvas.width  = window.innerWidth;
+      canvas.height = window.innerHeight;
+    }
+    resize();
+    window.addEventListener("resize", resize);
+
+    // Create particles
+    const COUNT = 68;
+    const particles = [];
+    const COLORS = [
+      [79,95,230], [145,99,242], [255,100,120],
+      [255,180,84], [61,220,151], [43,191,174]
+    ];
+    for(let i = 0; i < COUNT; i++){
+      const c = COLORS[Math.floor(Math.random() * COLORS.length)];
+      particles.push({
+        x:  Math.random() * window.innerWidth,
+        y:  Math.random() * window.innerHeight,
+        r:  1.2 + Math.random() * 2.8,
+        vx: (Math.random() - .5) * .38,
+        vy: (Math.random() - .5) * .38,
+        color: c,
+        alpha: .18 + Math.random() * .38,
+        pulseOffset: Math.random() * Math.PI * 2,
+        pulseSpeed:  .008 + Math.random() * .012
+      });
+    }
+
+    let hue = 0;
+    let t = 0;
+
+    function draw(){
+      aliveRAF = requestAnimationFrame(draw);
+      t++;
+      hue = (hue + .04) % 360;
+
+      ctx.clearRect(0, 0, canvas.width, canvas.height);
+
+      // Draw soft connection lines between nearby particles
+      for(let i = 0; i < particles.length; i++){
+        const p = particles[i];
+        for(let j = i+1; j < particles.length; j++){
+          const q = particles[j];
+          const dx = p.x - q.x, dy = p.y - q.y;
+          const dist = Math.sqrt(dx*dx + dy*dy);
+          if(dist < 120){
+            const alpha = (1 - dist/120) * .055;
+            ctx.beginPath();
+            ctx.moveTo(p.x, p.y);
+            ctx.lineTo(q.x, q.y);
+            ctx.strokeStyle = "rgba("+p.color[0]+","+p.color[1]+","+p.color[2]+","+alpha+")";
+            ctx.lineWidth = .6;
+            ctx.stroke();
+          }
+        }
+      }
+
+      // Draw and move particles
+      particles.forEach(function(p){
+        p.x += p.vx;
+        p.y += p.vy;
+        if(p.x < -10) p.x = canvas.width + 10;
+        if(p.x > canvas.width + 10) p.x = -10;
+        if(p.y < -10) p.y = canvas.height + 10;
+        if(p.y > canvas.height + 10) p.y = -10;
+
+        const pulse = Math.sin(t * p.pulseSpeed + p.pulseOffset);
+        const r = p.r * (1 + pulse * .35);
+        const alpha = p.alpha * (.7 + pulse * .3);
+
+        // glow
+        const grad = ctx.createRadialGradient(p.x, p.y, 0, p.x, p.y, r * 5);
+        grad.addColorStop(0, "rgba("+p.color[0]+","+p.color[1]+","+p.color[2]+","+alpha*.6+")");
+        grad.addColorStop(1, "rgba("+p.color[0]+","+p.color[1]+","+p.color[2]+",0)");
+        ctx.beginPath();
+        ctx.arc(p.x, p.y, r * 5, 0, Math.PI*2);
+        ctx.fillStyle = grad;
+        ctx.fill();
+
+        // core dot
+        ctx.beginPath();
+        ctx.arc(p.x, p.y, r, 0, Math.PI*2);
+        ctx.fillStyle = "rgba("+p.color[0]+","+p.color[1]+","+p.color[2]+","+alpha+")";
+        ctx.fill();
+      });
+    }
+
+    draw();
+  }
+
+  function stopAliveCanvas(){
+    if(aliveRAF){ cancelAnimationFrame(aliveRAF); aliveRAF = null; }
+    const canvas = document.getElementById("aliveCanvas");
+    if(canvas){ canvas.getContext("2d").clearRect(0, 0, canvas.width, canvas.height); }
+  }
+
   function applyTheme(key){
-    if(key === "indigo") document.documentElement.removeAttribute("data-theme");
-    else document.documentElement.setAttribute("data-theme", key);
+    // Remove all theme attrs and classes first
+    document.documentElement.removeAttribute("data-theme");
+    document.body.classList.remove("theme-alive");
+    stopAliveCanvas();
+
+    if(key === "alive"){
+      document.body.classList.add("theme-alive");
+      startAliveCanvas();
+    } else if(key !== "indigo"){
+      document.documentElement.setAttribute("data-theme", key);
+    }
   }
 
   function renderSettings(){
@@ -1901,14 +2170,24 @@
 
     const grid = document.getElementById("themeGrid");
     grid.innerHTML = "";
+
     THEMES.forEach(function(t){
       const sw = document.createElement("button");
-      sw.className = "theme-swatch" + (state.settings.theme === t.key ? " active" : "");
-      sw.title = t.name;
-      sw.innerHTML = '<span class="swatch-dots">' +
-        '<span class="swatch-dot" style="background:'+t.idle+'"></span>' +
-        '<span class="swatch-dot" style="background:'+t.active+'"></span>' +
-      '</span>';
+      const isActive = state.settings.theme === t.key;
+
+      if(t.key === "alive"){
+        sw.className = "theme-swatch alive-swatch" + (isActive ? " active" : "");
+        sw.title = t.name;
+        sw.innerHTML = '<span>✦</span>';
+      } else {
+        sw.className = "theme-swatch" + (isActive ? " active" : "");
+        sw.title = t.name;
+        sw.innerHTML = '<span class="swatch-dots">' +
+          '<span class="swatch-dot" style="background:'+t.idle+'"></span>' +
+          '<span class="swatch-dot" style="background:'+t.active+'"></span>' +
+        '</span>';
+      }
+
       sw.addEventListener("click", function(){
         state.settings.theme = t.key;
         applyTheme(t.key);
