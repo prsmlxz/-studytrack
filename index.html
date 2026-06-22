@@ -3,6 +3,7 @@
 <head>
 <meta charset="UTF-8" />
 <meta name="viewport" content="width=device-width, initial-scale=1" />
+<script>(function(){try{var m=localStorage.getItem('studytrack.mode');if(m==='light'||m==='dark'){document.documentElement.setAttribute('data-mode',m);}}catch(e){}})();</script>
 <title>StudyTrack</title>
 <link rel="icon" type="image/svg+xml" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 64 64'%3E%3Cdefs%3E%3ClinearGradient id='g' x1='0' y1='0' x2='1' y2='1'%3E%3Cstop offset='0' stop-color='%234f5fe6'/%3E%3Cstop offset='1' stop-color='%23ffb454'/%3E%3C/linearGradient%3E%3C/defs%3E%3Crect width='64' height='64' rx='14' fill='%2305060d'/%3E%3Crect width='64' height='64' rx='14' fill='url(%23g)' opacity='.15'/%3E%3Ctext x='32' y='43' font-family='system-ui,sans-serif' font-weight='700' font-size='26' fill='url(%23g)' text-anchor='middle' letter-spacing='-1'%3EST%3C/text%3E%3C/svg%3E" />
 <style>
@@ -52,6 +53,36 @@
     --accent-active:#ff6b81; --accent-active-soft:rgba(255,107,129,.18);
   }
 
+  /* ======================================================================
+     LIGHT / DARK MODE
+     The app is dark by default. In Settings you can pick System / Light / Dark.
+     "System" follows your device; "Light" / "Dark" force it on every device.
+     ===================================================================== */
+  :root{
+    /* aurora ground for the Alive theme (dark variant) */
+    --alive-ground:
+      radial-gradient(1200px 820px at 10% -12%, rgba(79,95,230,.16), transparent 60%),
+      radial-gradient(1000px 720px at 100% 112%, rgba(61,220,151,.10), transparent 60%);
+  }
+  :root[data-mode="light"]{
+    --c-void:#eef1f9; --c-ink:#ffffff; --c-ink-2:#f5f7fd;
+    --c-line:#e0e4f0; --c-line-soft:#eaedf6;
+    --c-fog:#9498ad; --c-mist:#565b71; --c-paper:#1b1e2c;
+    --alive-ground:
+      radial-gradient(1200px 800px at 12% -10%, rgba(120,140,250,.12), transparent 60%),
+      radial-gradient(1000px 700px at 100% 110%, rgba(110,210,180,.12), transparent 60%);
+  }
+  @media (prefers-color-scheme: light){
+    :root:not([data-mode]){
+      --c-void:#eef1f9; --c-ink:#ffffff; --c-ink-2:#f5f7fd;
+      --c-line:#e0e4f0; --c-line-soft:#eaedf6;
+      --c-fog:#9498ad; --c-mist:#565b71; --c-paper:#1b1e2c;
+      --alive-ground:
+        radial-gradient(1200px 800px at 12% -10%, rgba(120,140,250,.12), transparent 60%),
+        radial-gradient(1000px 700px at 100% 110%, rgba(110,210,180,.12), transparent 60%);
+    }
+  }
+
   body.running{ --accent-current: var(--accent-active); --accent-current-soft: var(--accent-active-soft); }
 
   *{ box-sizing:border-box; }
@@ -60,6 +91,7 @@
     margin:0;
     background:var(--c-void);
     color:var(--c-paper);
+    transition:background-color .45s var(--ease), color .45s var(--ease);
     font-family:var(--font-ui);
     -webkit-font-smoothing:antialiased;
     overflow:hidden;
@@ -290,6 +322,8 @@
   .panel{
     background:var(--c-ink); border:1px solid var(--c-line-soft);
     border-radius:var(--r-lg); padding:24px; margin-top:18px;
+    position:relative; z-index:1; /* keep panels above the timer's ambient glow */
+    transition:background-color .45s ease, border-color .45s ease;
   }
   .panel.danger{ border-color:rgba(255,93,108,.22); }
   .panel-head{ display:flex; align-items:center; justify-content:space-between; margin-bottom:14px; }
@@ -323,10 +357,10 @@
   }
   /* outer ambient vignette — the whole background breathes */
   .timer-stage::before{
-    content:""; position:absolute; inset:-60px; z-index:-2; pointer-events:none;
-    background:radial-gradient(ellipse at 50% 42%,
+    content:""; position:absolute; top:-60px; left:-50px; right:-50px; bottom:26px; z-index:-2; pointer-events:none;
+    background:radial-gradient(ellipse at 50% 38%,
       var(--accent-current-soft) 0%,
-      transparent 70%);
+      transparent 68%);
     filter:blur(20px);
     animation: ambientBreathe 11s ease-in-out infinite;
     transition:background 600ms var(--ease);
@@ -335,8 +369,8 @@
     animation: ambientBreathe 4s ease-in-out infinite, btnHueBreathe 9s ease-in-out infinite;
   }
   .timer-glow{
-    position:absolute; inset:-30px; z-index:-1; pointer-events:none;
-    background:radial-gradient(circle at 50% 55%,
+    position:absolute; top:-30px; left:-20px; right:-20px; bottom:30px; z-index:-1; pointer-events:none;
+    background:radial-gradient(circle at 50% 46%,
       var(--accent-current-soft) 0%,
       transparent 65%);
     filter:blur(6px);
@@ -458,6 +492,15 @@
   .theme-swatch .swatch-dots{ display:flex; gap:5px; }
   .theme-swatch .swatch-dot{ width:16px; height:16px; border-radius:50%; }
 
+  /* light / dark segmented toggle */
+  .mode-row{ display:flex; align-items:center; justify-content:space-between; gap:14px; margin-top:20px; flex-wrap:wrap; }
+  .mode-label{ font-size:13.5px; color:var(--c-mist); }
+  .mode-seg{ display:inline-flex; background:var(--c-ink-2); border:1px solid var(--c-line); border-radius:999px; padding:3px; gap:2px; }
+  .mode-opt{ border:none; background:transparent; color:var(--c-mist); font-size:13px; font-weight:600;
+    padding:7px 16px; border-radius:999px; transition:background .2s var(--ease), color .2s var(--ease); }
+  .mode-opt:hover{ color:var(--c-paper); }
+  .mode-opt.active{ background:var(--accent-idle); color:#06070f; }
+
   /* ========================================================================
      MODALS
      ===================================================================== */
@@ -558,123 +601,103 @@
      RESPONSIVE
      ===================================================================== */
   /* ========================================================================
-     ALIVE THEME
+     ALIVE THEME  —  a calm, breathing, living surface (light + dark)
+     The look adapts to the OS color scheme: a clean pearl-white surface
+     when the device prefers light, an elegant deep aurora when it prefers dark.
      ===================================================================== */
   #aliveCanvas{
     position:fixed; inset:0; z-index:0; pointer-events:none;
-    opacity:0; transition:opacity 1.2s ease;
+    opacity:0; transition:opacity 1.4s ease;
   }
   body.theme-alive #aliveCanvas{ opacity:1; }
 
-  /* rail gets a slow gradient sweep */
+  /* The Alive ground follows the resolved light/dark mode (token-driven). */
+  body.theme-alive{
+    background-color:var(--c-void);
+    background-image:var(--alive-ground);
+  }
+
+  /* rail: a slow, breathing vertical aurora wash (no hue-rotate hacks) */
   body.theme-alive .rail{
-    background:transparent;
-    position:relative; overflow:hidden;
+    background:transparent; position:relative; overflow:hidden;
   }
   body.theme-alive .rail::before{
     content:""; position:absolute; inset:0; z-index:-1;
     background:linear-gradient(180deg,
-      rgba(79,95,230,.22) 0%,
-      rgba(145,99,242,.14) 40%,
-      rgba(255,180,84,.1) 80%,
-      rgba(61,220,151,.12) 100%);
-    animation:railDrift 14s ease-in-out infinite alternate;
+      rgba(79,95,230,.20) 0%,
+      rgba(145,99,242,.14) 38%,
+      rgba(61,220,151,.12) 72%,
+      rgba(43,191,174,.14) 100%);
+    background-size:100% 220%;
+    animation:railBreathe 16s ease-in-out infinite alternate;
   }
-  @keyframes railDrift{
-    0%  { filter:hue-rotate(0deg)   brightness(1); }
-    50% { filter:hue-rotate(60deg)  brightness(1.15); }
-    100%{ filter:hue-rotate(-40deg) brightness(.95); }
+  @keyframes railBreathe{
+    0%  { background-position:0% 0%;   opacity:.85; }
+    100%{ background-position:0% 100%; opacity:1; }
   }
 
-  /* panels pulse with a faint color border */
-  body.theme-alive .panel{
-    animation:panelGlow 8s ease-in-out infinite;
+  /* panels: a faint, slow accent breath at the border (classy, not flashy) */
+  body.theme-alive .panel,
+  body.theme-alive .stat-card{
+    animation:aliveBreath 9s ease-in-out infinite;
     animation-delay:var(--panel-delay, 0s);
   }
-  @keyframes panelGlow{
-    0%,100%{ border-color:rgba(79,95,230,.18); box-shadow:0 0 0 0 transparent; }
-    50%     { border-color:rgba(145,99,242,.35); box-shadow:0 0 20px -8px rgba(145,99,242,.2); }
-  }
-
-  /* stat cards each drift at a slightly different phase */
   body.theme-alive .stat-card:nth-child(1){ --panel-delay:0s; }
-  body.theme-alive .stat-card:nth-child(2){ --panel-delay:2s; }
-  body.theme-alive .stat-card:nth-child(3){ --panel-delay:4s; }
-  body.theme-alive .stat-card:nth-child(4){ --panel-delay:6s; }
-  body.theme-alive .stat-card{
-    animation:panelGlow 8s ease-in-out infinite;
-    animation-delay:var(--panel-delay,0s);
+  body.theme-alive .stat-card:nth-child(2){ --panel-delay:1.4s; }
+  body.theme-alive .stat-card:nth-child(3){ --panel-delay:2.8s; }
+  body.theme-alive .stat-card:nth-child(4){ --panel-delay:4.2s; }
+  @keyframes aliveBreath{
+    0%,100%{ border-color:var(--c-line); box-shadow:0 0 0 0 transparent; }
+    50%    { border-color:rgba(120,130,240,.40);
+             box-shadow:0 0 26px -12px rgba(120,130,240,.34); }
   }
 
-  /* floating orbs behind the stage */
-  body.theme-alive .stage::before{
-    content:""; position:fixed; z-index:0; pointer-events:none;
-    width:520px; height:520px; border-radius:50%;
-    background:radial-gradient(circle, rgba(79,95,230,.07) 0%, transparent 70%);
-    top:-80px; left:-60px;
-    animation:orbDrift1 22s ease-in-out infinite;
-  }
-  body.theme-alive .stage::after{
-    content:""; position:fixed; z-index:0; pointer-events:none;
-    width:400px; height:400px; border-radius:50%;
-    background:radial-gradient(circle, rgba(255,100,120,.05) 0%, transparent 70%);
-    bottom:-100px; right:-80px;
-    animation:orbDrift2 18s ease-in-out infinite;
-  }
+  /* keep app content above the canvas */
   body.theme-alive .view{ position:relative; z-index:1; }
 
-  @keyframes orbDrift1{
-    0%  { transform:translate(0px, 0px)   scale(1); }
-    33% { transform:translate(60px,-40px) scale(1.1); }
-    66% { transform:translate(-30px,50px) scale(.92); }
-    100%{ transform:translate(0px, 0px)   scale(1); }
-  }
-  @keyframes orbDrift2{
-    0%  { transform:translate(0px,  0px)  scale(1); }
-    40% { transform:translate(-50px,30px) scale(1.08); }
-    70% { transform:translate(40px,-20px) scale(.95); }
-    100%{ transform:translate(0px,  0px)  scale(1); }
-  }
-
-  /* session rows shimmer slightly */
-  body.theme-alive .session-row{
-    transition:background .4s ease, border-color .4s ease;
-  }
+  /* session rows gently respond on hover */
+  body.theme-alive .session-row{ transition:background .4s ease, border-color .4s ease; }
   body.theme-alive .session-row:hover{
-    background:rgba(79,95,230,.06);
-    border-bottom-color:rgba(79,95,230,.2);
+    background:rgba(120,130,240,.07);
+    border-bottom-color:rgba(120,130,240,.22);
   }
 
-  /* the whole site slowly hue-shifts */
-  body.theme-alive{
-    animation:siteHueDrift 30s ease-in-out infinite;
-  }
-  @keyframes siteHueDrift{
-    0%  { filter:hue-rotate(0deg); }
-    25% { filter:hue-rotate(18deg); }
-    50% { filter:hue-rotate(-12deg); }
-    75% { filter:hue-rotate(28deg); }
-    100%{ filter:hue-rotate(0deg); }
+  /* the active accent itself drifts through living colors */
+  body.theme-alive{ animation:aliveAccent 24s linear infinite; }
+  @keyframes aliveAccent{
+    0%  { --accent-idle:#4f5fe6; --accent-idle-soft:rgba(79,95,230,.18); }
+    25% { --accent-idle:#9163f2; --accent-idle-soft:rgba(145,99,242,.18); }
+    50% { --accent-idle:#2bbfae; --accent-idle-soft:rgba(43,191,174,.18); }
+    75% { --accent-idle:#3ddc97; --accent-idle-soft:rgba(61,220,151,.18); }
+    100%{ --accent-idle:#4f5fe6; --accent-idle-soft:rgba(79,95,230,.18); }
   }
 
-  /* special swatch for alive option */
+  /* ---- the "Alive" settings swatch: a soft living aurora, no harsh spin --- */
   .theme-swatch.alive-swatch{
-    background:linear-gradient(135deg, #0a0b1c 0%, #1a1040 50%, #0a0b1c 100%);
-    overflow:hidden; position:relative;
+    position:relative; overflow:hidden;
+    background:#0a0b1c;
+    border:2px solid transparent;
   }
   .theme-swatch.alive-swatch::before{
-    content:""; position:absolute; inset:0;
+    content:""; position:absolute; inset:-30%;
     background:conic-gradient(from 0deg,
-      rgba(79,95,230,.6), rgba(145,99,242,.6),
-      rgba(255,100,120,.5), rgba(255,180,84,.5),
-      rgba(61,220,151,.5), rgba(79,95,230,.6));
-    animation:swatchSpin 4s linear infinite;
-    opacity:.5;
+      #4f5fe6, #9163f2, #ff6b81, #ffb454, #3ddc97, #2bbfae, #4f5fe6);
+    filter:blur(7px);
+    animation:aliveSwatchDrift 9s ease-in-out infinite;
   }
-  .theme-swatch.alive-swatch span{
-    position:relative; z-index:1; font-size:18px; line-height:1;
+  .theme-swatch.alive-swatch::after{
+    content:""; position:absolute; inset:0; border-radius:inherit;
+    background:radial-gradient(circle at 50% 38%, rgba(255,255,255,.30), transparent 60%);
+    animation:aliveSwatchPulse 4.5s ease-in-out infinite;
   }
-  @keyframes swatchSpin{ to{ transform:rotate(360deg); } }
+  @keyframes aliveSwatchDrift{
+    0%,100%{ transform:scale(1) rotate(0deg); }
+    50%    { transform:scale(1.18) rotate(28deg); }
+  }
+  @keyframes aliveSwatchPulse{
+    0%,100%{ opacity:.35; transform:scale(.9); }
+    50%    { opacity:.8;  transform:scale(1.08); }
+  }
 
   /* ========================================================================
      RESPONSIVE
@@ -870,6 +893,14 @@
           <h2>Appearance</h2>
           <p class="muted">The timer glows in your idle color, then shifts to your active color the moment you press Start.</p>
           <div class="theme-grid" id="themeGrid"></div>
+          <div class="mode-row">
+            <span class="mode-label">Brightness</span>
+            <div class="mode-seg" id="modeSeg" role="group" aria-label="Light or dark mode">
+              <button class="mode-opt" data-mode-opt="system">System</button>
+              <button class="mode-opt" data-mode-opt="light">Light</button>
+              <button class="mode-opt" data-mode-opt="dark">Dark</button>
+            </div>
+          </div>
         </div>
 
         <div class="panel">
@@ -1195,7 +1226,24 @@
     }
     isFlushing = false;
     updateSyncBadge();
-    if(touched) renderAll();
+    if(touched) renderPreservingNotesFocus();
+  }
+
+  // Re-render after a sync without throwing you out of a notes field you're editing.
+  function renderPreservingNotesFocus(){
+    const focused = document.activeElement;
+    const isNotes = focused && focused.classList && focused.classList.contains("row-notes");
+    const fid = isNotes && focused.dataset ? focused.dataset.id : null;
+    const selStart = isNotes ? focused.selectionStart : null;
+    const selEnd   = isNotes ? focused.selectionEnd   : null;
+    renderAll();
+    if(fid){
+      const restored = document.querySelector('.row-notes[data-id="'+fid+'"]');
+      if(restored){
+        restored.focus();
+        try{ restored.setSelectionRange(selStart, selEnd); }catch(e){}
+      }
+    }
   }
 
   /* ---- local-first mutators: state updates instantly, sync happens behind it --- */
@@ -1561,11 +1609,26 @@
     notesInput.value = session.notes || "";
     notesInput.dataset.id = session.id;
     notesInput.setAttribute("dir", "auto");
-    const saveNotes = debounce(function(){
-      updateSessionLocal(session.id, { notes: notesInput.value });
+    // While you type: update local state + the colored dot instantly, but DON'T
+    // sync yet. Syncing mid-typing re-renders the list and kicks you out of the box.
+    notesInput.addEventListener("input", function(){
+      const s = state.sessions.find(function(x){ return x.id === session.id; });
+      if(s) s.notes = notesInput.value;
       dot.style.background = subjectColor(notesInput.value);
-    }, 350);
-    notesInput.addEventListener("input", saveNotes);
+    });
+    // Sync only once you're done \u2014 when the field loses focus (or you press Enter).
+    let notesAtFocus = notesInput.value;
+    notesInput.addEventListener("focus", function(){ notesAtFocus = notesInput.value; });
+    function commitNotes(){
+      if(notesInput.value !== notesAtFocus){
+        notesAtFocus = notesInput.value;
+        updateSessionLocal(session.id, { notes: notesInput.value });
+      }
+    }
+    notesInput.addEventListener("blur", commitNotes);
+    notesInput.addEventListener("keydown", function(e){
+      if(e.key === "Enter"){ notesInput.blur(); }
+    });
     row.appendChild(notesInput);
 
     const actions = document.createElement("div");
@@ -2053,93 +2116,120 @@
     const canvas = document.getElementById("aliveCanvas");
     if(!canvas) return;
     const ctx = canvas.getContext("2d");
+    let W = 0, H = 0;
+    const dpr = Math.min(window.devicePixelRatio || 1, 2);
+
+    function prefersLight(){
+      const m = document.documentElement.getAttribute("data-mode");
+      if(m === "light") return true;
+      if(m === "dark")  return false;
+      return !!(window.matchMedia && window.matchMedia("(prefers-color-scheme: light)").matches);
+    }
 
     function resize(){
-      canvas.width  = window.innerWidth;
-      canvas.height = window.innerHeight;
+      W = window.innerWidth; H = window.innerHeight;
+      canvas.width = Math.round(W * dpr); canvas.height = Math.round(H * dpr);
+      canvas.style.width = W + "px"; canvas.style.height = H + "px";
+      ctx.setTransform(dpr, 0, 0, dpr, 0, 0);
     }
     resize();
     window.addEventListener("resize", resize);
 
-    // Create particles
-    const COUNT = 68;
+    // Hues we slowly travel through to keep the whole thing feeling "alive".
+    const HUES = [232, 258, 286, 156, 188]; // indigo -> violet -> magenta -> mint -> cyan
+
+    // Fine drifting particles (subtle dust/sparkle, NOT party balloons).
+    const PCOUNT = window.innerWidth < 640 ? 36 : 58;
     const particles = [];
-    const COLORS = [
-      [79,95,230], [145,99,242], [255,100,120],
-      [255,180,84], [61,220,151], [43,191,174]
-    ];
-    for(let i = 0; i < COUNT; i++){
-      const c = COLORS[Math.floor(Math.random() * COLORS.length)];
+    for(let i = 0; i < PCOUNT; i++){
       particles.push({
-        x:  Math.random() * window.innerWidth,
-        y:  Math.random() * window.innerHeight,
-        r:  1.2 + Math.random() * 2.8,
-        vx: (Math.random() - .5) * .38,
-        vy: (Math.random() - .5) * .38,
-        color: c,
-        alpha: .18 + Math.random() * .38,
-        pulseOffset: Math.random() * Math.PI * 2,
-        pulseSpeed:  .008 + Math.random() * .012
+        x: Math.random() * W,
+        y: Math.random() * H,
+        r: 0.6 + Math.random() * 1.5,
+        vx: (Math.random() - 0.5) * 0.14,
+        vy: (Math.random() - 0.5) * 0.14,
+        twOff: Math.random() * Math.PI * 2,
+        twSpd: 0.006 + Math.random() * 0.010,
+        hueOff: (Math.random() * 40) - 20
       });
     }
 
-    let hue = 0;
+    const RIBBONS = 5;
     let t = 0;
 
     function draw(){
       aliveRAF = requestAnimationFrame(draw);
-      t++;
-      hue = (hue + .04) % 360;
+      t += 1;
+      const light = prefersLight();
 
-      ctx.clearRect(0, 0, canvas.width, canvas.height);
+      ctx.clearRect(0, 0, W, H);
 
-      // Draw soft connection lines between nearby particles
-      for(let i = 0; i < particles.length; i++){
-        const p = particles[i];
-        for(let j = i+1; j < particles.length; j++){
-          const q = particles[j];
-          const dx = p.x - q.x, dy = p.y - q.y;
-          const dist = Math.sqrt(dx*dx + dy*dy);
-          if(dist < 120){
-            const alpha = (1 - dist/120) * .055;
-            ctx.beginPath();
-            ctx.moveTo(p.x, p.y);
-            ctx.lineTo(q.x, q.y);
-            ctx.strokeStyle = "rgba("+p.color[0]+","+p.color[1]+","+p.color[2]+","+alpha+")";
-            ctx.lineWidth = .6;
-            ctx.stroke();
-          }
+      // Smoothly interpolate a base hue as we travel along HUES.
+      const phase = t * 0.0010;
+      const i0 = Math.floor(phase) % HUES.length;
+      const i1 = (i0 + 1) % HUES.length;
+      const mix = phase - Math.floor(phase);
+      const baseHue = HUES[i0] + (HUES[i1] - HUES[i0]) * mix;
+
+      // ---- breathing, flowing ribbon lines (the clean moving lines) -------
+      ctx.globalCompositeOperation = light ? "multiply" : "screen";
+      ctx.lineWidth = 1.4;
+      for(let r = 0; r < RIBBONS; r++){
+        const yBase = H * (0.16 + r * 0.165);
+        // amplitude itself breathes in and out
+        const amp = (H * 0.05) * (1 + 0.45 * Math.sin(t * 0.004 + r * 1.1));
+        const speed = 0.0012 + r * 0.00045;
+        const lineHue = baseHue + r * 13;
+        const sat = light ? 58 : 72;
+        const lum = light ? 60 : 60;
+        const alpha = light ? 0.11 : 0.15;
+
+        ctx.beginPath();
+        for(let x = 0; x <= W; x += 8){
+          const y = yBase
+            + Math.sin(x * 0.0042 + t * speed + r) * amp
+            + Math.sin(x * 0.011 + t * speed * 1.7) * amp * 0.30;
+          if(x === 0) ctx.moveTo(x, y); else ctx.lineTo(x, y);
         }
+        const grad = ctx.createLinearGradient(0, 0, W, 0);
+        grad.addColorStop(0,   "hsla(" + lineHue + "," + sat + "%," + lum + "%,0)");
+        grad.addColorStop(0.5, "hsla(" + lineHue + "," + sat + "%," + lum + "%," + alpha + ")");
+        grad.addColorStop(1,   "hsla(" + (lineHue + 34) + "," + sat + "%," + lum + "%,0)");
+        ctx.strokeStyle = grad;
+        ctx.stroke();
       }
 
-      // Draw and move particles
+      // ---- fine twinkling particles --------------------------------------
+      ctx.globalCompositeOperation = light ? "multiply" : "screen";
       particles.forEach(function(p){
-        p.x += p.vx;
-        p.y += p.vy;
-        if(p.x < -10) p.x = canvas.width + 10;
-        if(p.x > canvas.width + 10) p.x = -10;
-        if(p.y < -10) p.y = canvas.height + 10;
-        if(p.y > canvas.height + 10) p.y = -10;
+        p.x += p.vx; p.y += p.vy;
+        if(p.x < -5) p.x = W + 5; else if(p.x > W + 5) p.x = -5;
+        if(p.y < -5) p.y = H + 5; else if(p.y > H + 5) p.y = -5;
 
-        const pulse = Math.sin(t * p.pulseSpeed + p.pulseOffset);
-        const r = p.r * (1 + pulse * .35);
-        const alpha = p.alpha * (.7 + pulse * .3);
+        const tw = Math.sin(t * p.twSpd + p.twOff);
+        const a = (light ? 0.20 : 0.48) * (0.5 + 0.5 * tw);
+        const rr = p.r * (1 + 0.4 * tw);
+        const ph = baseHue + p.hueOff;
+        const s = light ? 48 : 72;
+        const l = light ? 56 : 72;
 
-        // glow
-        const grad = ctx.createRadialGradient(p.x, p.y, 0, p.x, p.y, r * 5);
-        grad.addColorStop(0, "rgba("+p.color[0]+","+p.color[1]+","+p.color[2]+","+alpha*.6+")");
-        grad.addColorStop(1, "rgba("+p.color[0]+","+p.color[1]+","+p.color[2]+",0)");
+        // soft halo
+        const glow = ctx.createRadialGradient(p.x, p.y, 0, p.x, p.y, rr * 4);
+        glow.addColorStop(0, "hsla(" + ph + "," + s + "%," + l + "%," + (a * 0.5) + ")");
+        glow.addColorStop(1, "hsla(" + ph + "," + s + "%," + l + "%,0)");
         ctx.beginPath();
-        ctx.arc(p.x, p.y, r * 5, 0, Math.PI*2);
-        ctx.fillStyle = grad;
+        ctx.arc(p.x, p.y, rr * 4, 0, Math.PI * 2);
+        ctx.fillStyle = glow;
         ctx.fill();
 
-        // core dot
+        // crisp core
         ctx.beginPath();
-        ctx.arc(p.x, p.y, r, 0, Math.PI*2);
-        ctx.fillStyle = "rgba("+p.color[0]+","+p.color[1]+","+p.color[2]+","+alpha+")";
+        ctx.arc(p.x, p.y, rr, 0, Math.PI * 2);
+        ctx.fillStyle = "hsla(" + ph + "," + s + "%," + l + "%," + a + ")";
         ctx.fill();
       });
+
+      ctx.globalCompositeOperation = "source-over";
     }
 
     draw();
@@ -2165,11 +2255,43 @@
     }
   }
 
+  /* ---- light / dark mode: System / Light / Dark ------------------------ */
+  function currentMode(){
+    return document.documentElement.getAttribute("data-mode") || "system";
+  }
+  function setMode(mode){
+    if(mode === "light" || mode === "dark"){
+      document.documentElement.setAttribute("data-mode", mode);
+      try{ localStorage.setItem("studytrack.mode", mode); }catch(e){}
+    } else {
+      document.documentElement.removeAttribute("data-mode");
+      try{ localStorage.removeItem("studytrack.mode"); }catch(e){}
+    }
+    updateModeButtons();
+  }
+  function updateModeButtons(){
+    const m = currentMode();
+    document.querySelectorAll("#modeSeg .mode-opt").forEach(function(b){
+      b.classList.toggle("active", b.dataset.modeOpt === m);
+    });
+  }
+  (function wireMode(){
+    const seg = document.getElementById("modeSeg");
+    if(seg){
+      seg.addEventListener("click", function(e){
+        const b = e.target.closest(".mode-opt");
+        if(b) setMode(b.dataset.modeOpt);
+      });
+    }
+    updateModeButtons();
+  })();
+
   function renderSettings(){
     document.getElementById("accountEmail").textContent = currentUser ? currentUser.email : "—";
 
     const grid = document.getElementById("themeGrid");
     grid.innerHTML = "";
+    updateModeButtons();
 
     THEMES.forEach(function(t){
       const sw = document.createElement("button");
@@ -2178,7 +2300,7 @@
       if(t.key === "alive"){
         sw.className = "theme-swatch alive-swatch" + (isActive ? " active" : "");
         sw.title = t.name;
-        sw.innerHTML = '<span>✦</span>';
+        sw.innerHTML = "";
       } else {
         sw.className = "theme-swatch" + (isActive ? " active" : "");
         sw.title = t.name;
