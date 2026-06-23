@@ -40,6 +40,19 @@
     --font-mono: "SF Mono", "Cascadia Mono", "Consolas", "Roboto Mono", monospace;
   }
 
+  /* ----------------------------------------------------------------------
+     Register the accent colors as real <color> custom properties.
+     Without this, CSS treats them as plain strings and CANNOT interpolate
+     them — so keyframe/transition color changes SNAP abruptly instead of
+     easing. Registering them makes every accent change glide smoothly.
+     -------------------------------------------------------------------- */
+  @property --accent-idle{ syntax:"<color>"; inherits:true; initial-value:#4f5fe6; }
+  @property --accent-idle-soft{ syntax:"<color>"; inherits:true; initial-value:rgba(79,95,230,.18); }
+  @property --accent-active{ syntax:"<color>"; inherits:true; initial-value:#ffb454; }
+  @property --accent-active-soft{ syntax:"<color>"; inherits:true; initial-value:rgba(255,180,84,.18); }
+  @property --accent-current{ syntax:"<color>"; inherits:true; initial-value:#4f5fe6; }
+  @property --accent-current-soft{ syntax:"<color>"; inherits:true; initial-value:rgba(79,95,230,.18); }
+
   [data-theme="teal"]{
     --accent-idle:#2bbfae; --accent-idle-soft:rgba(43,191,174,.18);
     --accent-active:#ff8a5c; --accent-active-soft:rgba(255,138,92,.18);
@@ -91,7 +104,10 @@
     margin:0;
     background:var(--c-void);
     color:var(--c-paper);
-    transition:background-color .45s var(--ease), color .45s var(--ease);
+    /* Easing the registered accent vars makes the *entire* interface glide
+       from idle to active color (and back) instead of snapping. */
+    transition:background-color .45s var(--ease), color .45s var(--ease),
+               --accent-current .55s var(--ease), --accent-current-soft .55s var(--ease);
     font-family:var(--font-ui);
     -webkit-font-smoothing:antialiased;
     overflow:hidden;
@@ -322,6 +338,7 @@
   .panel{
     background:var(--c-ink); border:1px solid var(--c-line-soft);
     border-radius:var(--r-lg); padding:24px; margin-top:18px;
+    position:relative; z-index:1; /* keep panels above the timer's ambient glow */
     transition:background-color .45s ease, border-color .45s ease;
   }
   .panel.danger{ border-color:rgba(255,93,108,.22); }
@@ -352,28 +369,40 @@
      ===================================================================== */
   .timer-stage{
     position:relative; display:flex; flex-direction:column; align-items:center;
-    padding:54px 0 38px;
+    padding:54px 0 38px; isolation:isolate;
   }
-  /* ambient vignette — fixed so it never clips against panel stacking */
-  .timer-glow{
-    position:fixed; top:0; left:0; right:0; height:52vh;
-    z-index:0; pointer-events:none;
-    background:radial-gradient(ellipse at 50% 28%,
+  /* outer ambient vignette — the whole background breathes */
+  .timer-stage::before{
+    content:""; position:absolute; top:-60px; left:-50px; right:-50px; bottom:40px; z-index:-2; pointer-events:none;
+    background:radial-gradient(ellipse at 50% 38%,
       var(--accent-current-soft) 0%,
-      transparent 70%);
-    mask-image:linear-gradient(to bottom, black 0%, black 55%, transparent 100%);
-    -webkit-mask-image:linear-gradient(to bottom, black 0%, black 55%, transparent 100%);
-    filter:blur(10px);
+      transparent 68%);
+    filter:blur(20px);
+    /* Fade the lower edge to nothing so the glow never collides with the
+       Recent panel below — no hard rectangle cut-off. */
+    -webkit-mask:linear-gradient(to bottom, #000 60%, transparent 100%);
+            mask:linear-gradient(to bottom, #000 60%, transparent 100%);
+    animation: ambientBreathe 11s ease-in-out infinite;
+    transition:background 600ms var(--ease);
+  }
+  body.running .timer-stage::before{
+    animation: ambientBreathe 4s ease-in-out infinite, btnHueBreathe 9s ease-in-out infinite;
+  }
+  .timer-glow{
+    position:absolute; top:-30px; left:-20px; right:-20px; bottom:48px; z-index:-1; pointer-events:none;
+    background:radial-gradient(circle at 50% 46%,
+      var(--accent-current-soft) 0%,
+      transparent 65%);
+    filter:blur(6px);
+    /* Smoothly fade out toward the bottom so the breathing glow tapers off
+       gracefully above the Recent panel instead of being clipped. */
+    -webkit-mask:linear-gradient(to bottom, #000 64%, transparent 100%);
+            mask:linear-gradient(to bottom, #000 64%, transparent 100%);
     transition:background 600ms var(--ease);
     animation: glowPulse 6s ease-in-out infinite;
   }
   body.running .timer-glow{
-    animation: glowPulse 2.4s ease-in-out infinite;
-    height:60vh;
-  }
-  /* everything in the timer view sits above the fixed glow */
-  .timer-stage, .timer-stage > *, #timerStage ~ * {
-    position:relative; z-index:1;
+    animation: glowPulse 2.4s ease-in-out infinite, btnHueBreathe 9s ease-in-out infinite;
   }
 
   .timer-display{
@@ -657,9 +686,15 @@
     border-bottom-color:rgba(120,130,240,.22);
   }
 
-  /* accent color drift is handled by JS (CSS variable animation doesn't interpolate) */
-  /* see startAliveColorCycle() in the script */
-  body.theme-alive{ /* no animation here — JS drives it */ }
+  /* the active accent itself drifts through living colors */
+  body.theme-alive{ animation:aliveAccent 24s linear infinite; }
+  @keyframes aliveAccent{
+    0%  { --accent-idle:#4f5fe6; --accent-idle-soft:rgba(79,95,230,.18); }
+    25% { --accent-idle:#9163f2; --accent-idle-soft:rgba(145,99,242,.18); }
+    50% { --accent-idle:#2bbfae; --accent-idle-soft:rgba(43,191,174,.18); }
+    75% { --accent-idle:#3ddc97; --accent-idle-soft:rgba(61,220,151,.18); }
+    100%{ --accent-idle:#4f5fe6; --accent-idle-soft:rgba(79,95,230,.18); }
+  }
 
   /* ---- the "Alive" settings swatch: a soft living aurora, no harsh spin --- */
   .theme-swatch.alive-swatch{
@@ -701,6 +736,64 @@
     #tmHMS{ font-size:54px; }
     .timer-centi{ font-size:22px; }
     .btn-record{ width:96px; height:96px; }
+  }
+  /* ========================================================================
+     SUBJECT TAGS
+     ===================================================================== */
+  .tag-chip{
+    display:inline-flex; align-items:center; gap:6px; flex:none;
+    max-width:140px; height:28px; padding:0 10px;
+    background:var(--c-ink-2); border:1px solid var(--c-line-soft);
+    border-radius:999px; color:var(--c-mist); font-size:12.5px; font-weight:600;
+    transition:border-color .2s var(--ease), background .2s var(--ease), color .2s var(--ease);
+  }
+  .tag-chip:hover{ border-color:var(--accent-idle); color:var(--c-paper); }
+  .tag-chip .tag-dot{ width:9px; height:9px; border-radius:50%; flex:none; }
+  .tag-chip .tag-name{ overflow:hidden; text-overflow:ellipsis; white-space:nowrap; }
+  .tag-chip.is-empty{ color:var(--c-fog); }
+  .tag-chip.is-empty .tag-dot{ background:transparent; box-shadow:inset 0 0 0 1.5px var(--c-fog); }
+
+  /* the tag picker popover (uses the modal layer) */
+  .modal.tag-modal{ width:340px; }
+  .tag-list{ display:flex; flex-direction:column; gap:4px; max-height:230px; overflow:auto; margin-bottom:6px; }
+  .tag-option{
+    display:flex; align-items:center; gap:10px; width:100%;
+    padding:9px 10px; border-radius:var(--r-sm); border:1px solid transparent;
+    background:none; color:var(--c-paper); font-size:13.5px; font-weight:500; text-align:left;
+    transition:background .15s var(--ease), border-color .15s var(--ease);
+  }
+  .tag-option:hover{ background:var(--c-ink-2); }
+  .tag-option.selected{ border-color:var(--accent-idle); background:var(--accent-idle-soft); }
+  .tag-option .tag-dot{ width:12px; height:12px; border-radius:50%; flex:none; }
+  .tag-option .to-name{ flex:1; min-width:0; overflow:hidden; text-overflow:ellipsis; white-space:nowrap; }
+  .tag-option .to-check{ color:var(--accent-idle); font-size:13px; flex:none; }
+  .tag-option .to-del{
+    width:24px; height:24px; border:none; background:none; color:var(--c-fog);
+    border-radius:6px; display:flex; align-items:center; justify-content:center; flex:none;
+  }
+  .tag-option .to-del:hover{ background:var(--c-rose-soft); color:var(--c-rose); }
+  .tag-divider{ height:1px; background:var(--c-line-soft); margin:10px 0; }
+  .tag-create-row{ display:flex; gap:8px; align-items:center; }
+  .tag-create-row input[type="text"]{
+    flex:1; min-width:0; background:var(--c-ink-2); border:1px solid var(--c-line);
+    border-radius:var(--r-sm); padding:9px 11px; color:var(--c-paper); font-size:13.5px;
+  }
+  .tag-create-row input[type="text"]:focus{ outline:none; border-color:var(--accent-idle); }
+  .tag-swatches{ display:flex; flex-wrap:wrap; gap:8px; margin-top:12px; }
+  .tag-swatch{
+    width:26px; height:26px; border-radius:50%; border:2px solid transparent; cursor:pointer;
+    transition:transform .12s var(--ease), border-color .12s var(--ease);
+  }
+  .tag-swatch:hover{ transform:scale(1.12); }
+  .tag-swatch.selected{ border-color:var(--c-paper); }
+  .tag-swatch.custom{
+    display:flex; align-items:center; justify-content:center; overflow:hidden;
+    background:conic-gradient(from 0deg,#ff6b81,#ffb454,#c8ec5a,#3ddc97,#2bbfae,#4f5fe6,#9163f2,#ff6b81);
+    position:relative; padding:0;
+  }
+  .tag-swatch.custom input[type="color"]{
+    position:absolute; inset:-6px; width:200%; height:200%; border:none; padding:0;
+    background:none; cursor:pointer; opacity:0;
   }
 </style>
 </head>
@@ -890,6 +983,13 @@
               <button class="mode-opt" data-mode-opt="dark">Dark</button>
             </div>
           </div>
+          <div class="mode-row">
+            <span class="mode-label">Button sound</span>
+            <div class="mode-seg" id="soundSeg" role="group" aria-label="Start/stop button sound">
+              <button class="mode-opt" data-sound-opt="on">On</button>
+              <button class="mode-opt" data-sound-opt="off">Off</button>
+            </div>
+          </div>
         </div>
 
         <div class="panel">
@@ -941,6 +1041,21 @@
       <div class="modal-actions">
         <button class="btn-secondary" data-close>Cancel</button>
         <button class="btn-primary" id="editSave">Save changes</button>
+      </div>
+    </div>
+
+    <div class="modal tag-modal" id="modalTagPicker">
+      <h3>Subject tag</h3>
+      <div class="tag-list" id="tagList"></div>
+      <div class="tag-divider"></div>
+      <label style="display:block;font-size:11px;text-transform:uppercase;letter-spacing:.08em;color:var(--c-fog);margin-bottom:8px;font-weight:600;">New tag</label>
+      <div class="tag-create-row">
+        <input type="text" id="newTagName" dir="auto" placeholder="e.g. زیست" maxlength="32" />
+        <button class="btn-primary" id="newTagSave">Add</button>
+      </div>
+      <div class="tag-swatches" id="tagSwatches"></div>
+      <div class="modal-actions">
+        <button class="btn-secondary" data-close>Done</button>
       </div>
     </div>
 
@@ -1077,6 +1192,99 @@
     for(let i=0;i<t.length;i++){ hash = (hash*31 + t.charCodeAt(i)) >>> 0; }
     const hue = hash % 360;
     return "hsl(" + hue + " 68% 60%)";
+  }
+
+  /* ======================================================================
+     SUBJECT TAGS
+     Tags are a personal, colour-coded label you can attach to any session.
+     They live entirely in localStorage so they NEVER touch the session rows
+     that the text exporter/importer reads — your copy-as-text format is
+     completely untouched (it only ever sees start/end + your notes, with the
+     tag name simply prepended for readability).
+     ----------------------------------------------------------------------
+     - studytrack.tags.v1        : [{ id, name, color }]
+     - studytrack.sessionTags.v1 : { "date|start|end": tagId }
+       (keyed by the session's immutable time signature so it survives the
+        local→server id swap and cross-session re-renders)
+     =================================================================== */
+  const TAGS_KEY = "studytrack.tags.v1";
+  const SESSION_TAGS_KEY = "studytrack.sessionTags.v1";
+  const TAG_PALETTE = ["#4f5fe6","#9163f2","#ff6b81","#ff8a5c","#ffb454",
+                       "#c8ec5a","#3ddc97","#2bbfae","#56c2ff","#8d8fab"];
+
+  let tagDefs = (function(){
+    try{ return JSON.parse(localStorage.getItem(TAGS_KEY) || "[]"); }
+    catch(e){ return []; }
+  })();
+  let sessionTagMap = (function(){
+    try{ return JSON.parse(localStorage.getItem(SESSION_TAGS_KEY) || "{}"); }
+    catch(e){ return {}; }
+  })();
+  function saveTagDefs(){ try{ localStorage.setItem(TAGS_KEY, JSON.stringify(tagDefs)); }catch(e){} }
+  function saveSessionTagMap(){ try{ localStorage.setItem(SESSION_TAGS_KEY, JSON.stringify(sessionTagMap)); }catch(e){} }
+
+  function tagKey(s){ return s.date + "|" + s.start + "|" + s.end; }
+  function getTagById(id){ for(let i=0;i<tagDefs.length;i++){ if(tagDefs[i].id===id) return tagDefs[i]; } return null; }
+  function sessionTag(s){ if(!s) return null; const id = sessionTagMap[tagKey(s)]; return id ? getTagById(id) : null; }
+  function setSessionTag(s, tagId){
+    const k = tagKey(s);
+    if(tagId){ sessionTagMap[k] = tagId; } else { delete sessionTagMap[k]; }
+    saveSessionTagMap();
+  }
+  function moveSessionTag(oldKey, newKey){
+    if(oldKey===newKey) return;
+    if(sessionTagMap[oldKey]){ sessionTagMap[newKey] = sessionTagMap[oldKey]; delete sessionTagMap[oldKey]; saveSessionTagMap(); }
+  }
+  function createTag(name, color){
+    const tag = { id:"tag_"+Date.now().toString(36)+Math.random().toString(36).slice(2,6), name:name, color:color };
+    tagDefs.push(tag); saveTagDefs(); return tag;
+  }
+  function deleteTag(id){
+    tagDefs = tagDefs.filter(function(t){ return t.id!==id; });
+    saveTagDefs();
+    // unassign it from any sessions
+    Object.keys(sessionTagMap).forEach(function(k){ if(sessionTagMap[k]===id) delete sessionTagMap[k]; });
+    saveSessionTagMap();
+  }
+  /* the colour shown on a session's dot: its tag if tagged, else the old hash */
+  function sessionDotColor(s){ const t = sessionTag(s); return t ? t.color : subjectColor(s.notes); }
+  /* how a session is grouped/labelled in stats: tag name wins over raw notes */
+  function sessionSubjectKey(s){ const t = sessionTag(s); return t ? t.name : ((s.notes||"").trim() || "Untitled"); }
+
+  /* ======================================================================
+     SOFT BUTTON SOUND  (Web Audio — a gentle two-note swell on Start/Stop)
+     =================================================================== */
+  let _audioCtx = null;
+  function ensureAudio(){
+    if(_audioCtx) return _audioCtx;
+    try{ _audioCtx = new (window.AudioContext || window.webkitAudioContext)(); }catch(e){ _audioCtx = null; }
+    return _audioCtx;
+  }
+  function soundEnabled(){ return localStorage.getItem("studytrack.sound") !== "off"; }
+  function playTone(kind){
+    if(!soundEnabled()) return;
+    const ctx = ensureAudio(); if(!ctx) return;
+    if(ctx.state === "suspended"){ try{ ctx.resume(); }catch(e){} }
+    const now = ctx.currentTime;
+    // Start = a soft rising pair, Stop = a soft falling pair.
+    const notes = kind === "start" ? [523.25, 783.99] : [659.25, 392.00];
+    const master = ctx.createGain();
+    master.gain.setValueAtTime(0.0001, now);
+    master.gain.exponentialRampToValueAtTime(0.22, now + 0.05);
+    master.gain.exponentialRampToValueAtTime(0.0001, now + 0.55);
+    master.connect(ctx.destination);
+    notes.forEach(function(f, i){
+      const t = now + i * 0.085;
+      const osc = ctx.createOscillator();
+      osc.type = "sine";
+      osc.frequency.setValueAtTime(f, t);
+      const g = ctx.createGain();
+      g.gain.setValueAtTime(0.0001, t);
+      g.gain.exponentialRampToValueAtTime(0.9, t + 0.035);   // smooth attack
+      g.gain.exponentialRampToValueAtTime(0.0001, t + 0.42); // smooth release
+      osc.connect(g); g.connect(master);
+      osc.start(t); osc.stop(t + 0.46);
+    });
   }
   function debounce(fn, ms){
     let t;
@@ -1509,6 +1717,7 @@
   }
 
   function startTimer(){
+    playTone("start");
     timerRunning = true;
     timerStartMs = Date.now();
     document.body.classList.add("running");
@@ -1517,6 +1726,7 @@
     tickDisplay();
   }
   function stopTimer(){
+    playTone("stop");
     clearInterval(timerInterval);
     const elapsedSec = Math.round((Date.now() - timerStartMs)/1000);
     timerRunning = false;
@@ -1577,7 +1787,7 @@
 
     const dot = document.createElement("span");
     dot.className = "dot";
-    dot.style.background = subjectColor(session.notes);
+    dot.style.background = sessionDotColor(session);
     row.appendChild(dot);
 
     const main = document.createElement("div");
@@ -1591,6 +1801,35 @@
     main.appendChild(rt); main.appendChild(rs);
     row.appendChild(main);
 
+    // ---- subject-tag chip ------------------------------------------------
+    const tagChip = document.createElement("button");
+    tagChip.type = "button";
+    tagChip.className = "tag-chip";
+    tagChip.title = "Set a subject tag";
+    function refreshTagUI(){
+      const t = sessionTag(session);
+      tagChip.innerHTML = "";
+      const cd = document.createElement("span");
+      cd.className = "tag-dot";
+      const nm = document.createElement("span");
+      nm.className = "tag-name";
+      if(t){
+        tagChip.classList.remove("is-empty");
+        cd.style.background = t.color;
+        nm.textContent = t.name;
+      } else {
+        tagChip.classList.add("is-empty");
+        cd.style.background = "transparent";
+        nm.textContent = "Tag";
+      }
+      tagChip.appendChild(cd); tagChip.appendChild(nm);
+      // dot follows the tag colour (falls back to the notes-hash when untagged)
+      dot.style.background = sessionDotColor(session);
+    }
+    refreshTagUI();
+    tagChip.addEventListener("click", function(){ openTagPicker(session, refreshTagUI); });
+    row.appendChild(tagChip);
+
     const notesInput = document.createElement("input");
     notesInput.type = "text";
     notesInput.className = "row-notes";
@@ -1603,7 +1842,9 @@
     notesInput.addEventListener("input", function(){
       const s = state.sessions.find(function(x){ return x.id === session.id; });
       if(s) s.notes = notesInput.value;
-      dot.style.background = subjectColor(notesInput.value);
+      // keep the tag colour if one is set, otherwise reflect the notes hash
+      const t = sessionTag(session);
+      dot.style.background = t ? t.color : subjectColor(notesInput.value);
     });
     // Sync only once you're done \u2014 when the field loses focus (or you press Enter).
     let notesAtFocus = notesInput.value;
@@ -1667,10 +1908,115 @@
     const notes = document.getElementById("editNotes").value;
     const mins = durationMinutesBetween(start, end);
     if(!date || !mins){ toast("End time must be after start time."); return; }
+    const oldKey = tagKey(s);
     updateSessionLocal(id, { date:date, start:start, end:end, notes:notes, durationSec: mins*60 });
+    moveSessionTag(oldKey, date + "|" + start + "|" + end); // keep the tag attached after a time edit
     closeModal();
     renderAll();
     toast("Session updated");
+  });
+
+  /* ======================================================================
+     TAG PICKER
+     =================================================================== */
+  let _tagPickerSession = null;
+  let _tagPickerRefresh = null;
+  let _newTagColor = TAG_PALETTE[0];
+
+  function openTagPicker(session, refreshFn){
+    _tagPickerSession = session;
+    _tagPickerRefresh = refreshFn || null;
+    _newTagColor = TAG_PALETTE[0];
+    document.getElementById("newTagName").value = "";
+    renderTagPicker();
+    openModal("modalTagPicker");
+  }
+
+  function renderTagPicker(){
+    const listEl = document.getElementById("tagList");
+    const currentId = _tagPickerSession ? sessionTagMap[tagKey(_tagPickerSession)] : null;
+    listEl.innerHTML = "";
+
+    const noneBtn = document.createElement("button");
+    noneBtn.type = "button";
+    noneBtn.className = "tag-option" + (!currentId ? " selected" : "");
+    noneBtn.innerHTML = '<span class="tag-dot" style="background:transparent;box-shadow:inset 0 0 0 1.5px var(--c-fog);"></span><span class="to-name">No tag</span>';
+    if(!currentId){ const c=document.createElement("span"); c.className="to-check"; c.textContent="✓"; noneBtn.appendChild(c); }
+    noneBtn.addEventListener("click", function(){ assignTag(null); });
+    listEl.appendChild(noneBtn);
+
+    tagDefs.forEach(function(t){
+      const btn = document.createElement("button");
+      btn.type = "button";
+      btn.className = "tag-option" + (currentId===t.id ? " selected" : "");
+      const d = document.createElement("span"); d.className="tag-dot"; d.style.background=t.color;
+      const nm = document.createElement("span"); nm.className="to-name"; nm.textContent=t.name; nm.setAttribute("dir","auto");
+      btn.appendChild(d); btn.appendChild(nm);
+      if(currentId===t.id){ const c=document.createElement("span"); c.className="to-check"; c.textContent="✓"; btn.appendChild(c); }
+      const del = document.createElement("span");
+      del.className = "to-del";
+      del.title = "Delete this tag everywhere";
+      del.innerHTML = '<svg viewBox="0 0 24 24" width="14" height="14" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><path d="M5 5l14 14M19 5L5 19"/></svg>';
+      del.addEventListener("click", function(e){
+        e.stopPropagation();
+        openConfirm("Delete tag “"+t.name+"”?", "It will be removed from every session it's on. Your notes and times stay exactly as they are.", function(){
+          deleteTag(t.id);
+          renderTagPicker();
+          if(_tagPickerRefresh) _tagPickerRefresh();
+          renderAll();
+          toast("Tag deleted");
+        });
+      });
+      btn.appendChild(del);
+      btn.addEventListener("click", function(){ assignTag(t.id); });
+      listEl.appendChild(btn);
+    });
+
+    renderTagSwatches();
+  }
+
+  function renderTagSwatches(){
+    const sw = document.getElementById("tagSwatches");
+    sw.innerHTML = "";
+    TAG_PALETTE.forEach(function(col){
+      const b = document.createElement("button");
+      b.type = "button";
+      b.className = "tag-swatch" + (_newTagColor===col ? " selected" : "");
+      b.style.background = col;
+      b.title = col;
+      b.addEventListener("click", function(){ _newTagColor = col; renderTagSwatches(); });
+      sw.appendChild(b);
+    });
+    const cw = document.createElement("label");
+    cw.className = "tag-swatch custom" + (TAG_PALETTE.indexOf(_newTagColor)===-1 ? " selected" : "");
+    cw.title = "Custom colour";
+    const ci = document.createElement("input");
+    ci.type = "color";
+    ci.value = (TAG_PALETTE.indexOf(_newTagColor)===-1) ? _newTagColor : "#56c2ff";
+    ci.addEventListener("input", function(){ _newTagColor = ci.value; renderTagSwatches(); });
+    cw.appendChild(ci);
+    sw.appendChild(cw);
+  }
+
+  function assignTag(tagId){
+    if(_tagPickerSession){
+      setSessionTag(_tagPickerSession, tagId);
+      if(_tagPickerRefresh) _tagPickerRefresh();
+      renderAll();
+    }
+    closeModal();
+  }
+
+  document.getElementById("newTagSave").addEventListener("click", function(){
+    const name = document.getElementById("newTagName").value.trim();
+    if(!name){ toast("Give the tag a name."); return; }
+    const tag = createTag(name, _newTagColor);
+    document.getElementById("newTagName").value = "";
+    assignTag(tag.id);   // auto-apply the new tag to this session
+    toast("Tag created");
+  });
+  document.getElementById("newTagName").addEventListener("keydown", function(e){
+    if(e.key === "Enter"){ e.preventDefault(); document.getElementById("newTagSave").click(); }
   });
 
 
@@ -1966,16 +2312,18 @@
   }
   function computeSubjectData(){
     const totals = {};
+    const colors = {};
     state.sessions.forEach(function(s){
-      const key = (s.notes||"").trim() || "Untitled";
+      const key = sessionSubjectKey(s);   // tag name when tagged, else notes
       totals[key] = (totals[key]||0) + s.durationSec;
+      if(!colors[key]) colors[key] = sessionDotColor(s);
     });
-    let entries = Object.keys(totals).map(function(k){ return { name:k, sec: totals[k] }; });
+    let entries = Object.keys(totals).map(function(k){ return { name:k, sec: totals[k], color: colors[k] }; });
     entries.sort(function(a,b){ return b.sec - a.sec; });
     if(entries.length > 6){
       const top = entries.slice(0,6);
       const otherSec = entries.slice(6).reduce(function(sum,e){ return sum + e.sec; }, 0);
-      top.push({ name:"Other", sec: otherSec });
+      top.push({ name:"Other", sec: otherSec, color:"#3a3c58" });
       entries = top;
     }
     return entries;
@@ -2045,7 +2393,7 @@
       const fraction = d.sec / total;
       const len = fraction * circumference;
       const offset = -(cumulative * circumference);
-      const color = d.name === "Other" ? "#3a3c58" : subjectColor(d.name);
+      const color = d.color || (d.name === "Other" ? "#3a3c58" : subjectColor(d.name));
       svgContent += '<circle cx="'+cx+'" cy="'+cy+'" r="'+r+'" fill="none" stroke="'+color+'" stroke-width="'+sw+'" ' +
         'stroke-dasharray="'+len+' '+(circumference-len)+'" stroke-dashoffset="'+offset+'"><title>'+escapeHtml(d.name)+': '+minutesToLabel(d.sec/60)+'</title></circle>';
       cumulative += fraction;
@@ -2230,69 +2578,15 @@
     if(canvas){ canvas.getContext("2d").clearRect(0, 0, canvas.width, canvas.height); }
   }
 
-  /* Smooth color cycle — CSS variable animation can't interpolate, so we do
-     it in JS: lerp through a hue wheel and update the custom properties
-     every frame. This is what makes the glow, button, and badges smoothly
-     drift through colors instead of jumping. */
-  let aliveColorRAF = null;
-
-  function startAliveColorCycle(){
-    let hue = 220; // start at indigo-blue
-    const root = document.documentElement;
-
-    function hslToHex(h, s, l){
-      s /= 100; l /= 100;
-      const k = function(n){ return (n + h/30) % 12; };
-      const a = s * Math.min(l, 1-l);
-      const f = function(n){ return l - a * Math.max(-1, Math.min(k(n)-3, Math.min(9-k(n), 1))); };
-      const toHex = function(v){ return Math.round(v*255).toString(16).padStart(2,"0"); };
-      return "#" + toHex(f(0)) + toHex(f(8)) + toHex(f(4));
-    }
-    function hslToRgb(h, s, l){
-      s /= 100; l /= 100;
-      const k = function(n){ return (n + h/30) % 12; };
-      const a = s * Math.min(l, 1-l);
-      const f = function(n){ return l - a * Math.max(-1, Math.min(k(n)-3, Math.min(9-k(n), 1))); };
-      return [Math.round(f(0)*255), Math.round(f(8)*255), Math.round(f(4)*255)];
-    }
-
-    function tick(){
-      aliveColorRAF = requestAnimationFrame(tick);
-      hue = (hue + 0.04) % 360; // full cycle every ~25 seconds at 60fps
-
-      const idleHex  = hslToHex(hue, 68, 65);
-      const rgb      = hslToRgb(hue, 68, 65);
-      const softRgba = "rgba("+rgb[0]+","+rgb[1]+","+rgb[2]+",.18)";
-      const softRgba2= "rgba("+rgb[0]+","+rgb[1]+","+rgb[2]+",.32)";
-
-      root.style.setProperty("--accent-idle",        idleHex);
-      root.style.setProperty("--accent-idle-soft",   softRgba);
-      root.style.setProperty("--accent-current",     idleHex);
-      root.style.setProperty("--accent-current-soft",softRgba2);
-    }
-    tick();
-  }
-
-  function stopAliveColorCycle(){
-    if(aliveColorRAF){ cancelAnimationFrame(aliveColorRAF); aliveColorRAF = null; }
-    // Reset to default indigo accent
-    const root = document.documentElement;
-    root.style.removeProperty("--accent-idle");
-    root.style.removeProperty("--accent-idle-soft");
-    root.style.removeProperty("--accent-current");
-    root.style.removeProperty("--accent-current-soft");
-  }
-
   function applyTheme(key){
+    // Remove all theme attrs and classes first
     document.documentElement.removeAttribute("data-theme");
     document.body.classList.remove("theme-alive");
     stopAliveCanvas();
-    stopAliveColorCycle();
 
     if(key === "alive"){
       document.body.classList.add("theme-alive");
       startAliveCanvas();
-      startAliveColorCycle();
     } else if(key !== "indigo"){
       document.documentElement.setAttribute("data-theme", key);
     }
@@ -2329,12 +2623,33 @@
     updateModeButtons();
   })();
 
+  function updateSoundButtons(){
+    const on = soundEnabled();
+    document.querySelectorAll("#soundSeg .mode-opt").forEach(function(b){
+      b.classList.toggle("active", (b.dataset.soundOpt === "on") === on);
+    });
+  }
+  (function wireSound(){
+    const seg = document.getElementById("soundSeg");
+    if(seg){
+      seg.addEventListener("click", function(e){
+        const b = e.target.closest(".mode-opt");
+        if(!b) return;
+        try{ localStorage.setItem("studytrack.sound", b.dataset.soundOpt); }catch(e2){}
+        updateSoundButtons();
+        if(b.dataset.soundOpt === "on") playTone("start"); // little preview
+      });
+    }
+    updateSoundButtons();
+  })();
+
   function renderSettings(){
     document.getElementById("accountEmail").textContent = currentUser ? currentUser.email : "—";
 
     const grid = document.getElementById("themeGrid");
     grid.innerHTML = "";
     updateModeButtons();
+    updateSoundButtons();
 
     THEMES.forEach(function(t){
       const sw = document.createElement("button");
@@ -2502,8 +2817,15 @@
   function buildSessionsText(sessions){
     // Builds the format Parsa sends to his brother:
     // 10:30 - 12:00 زیست (مطالعه فصل 4)
+    // The subject tag (if any) is simply prepended to the notes, so the
+    // exported text stays in the exact same "HH:MM - HH:MM  text" shape.
     const lines = sessions.map(function(s){
-      const label = (s.notes || "").trim() || "—";
+      const tag = sessionTag(s);
+      const notes = (s.notes || "").trim();
+      let label;
+      if(tag && notes)      label = tag.name + " " + notes;
+      else if(tag)          label = tag.name;
+      else                  label = notes || "—";
       return s.start + " - " + s.end + " " + label;
     });
     return lines.join("\n");
