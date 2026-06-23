@@ -858,21 +858,11 @@
      rail a quiet, futuristic "living surface" feel (like the Start button's
      pixels, but slowly pulsing). Masked so it fades at the top & bottom. */
   .rail{ background:linear-gradient(180deg, var(--c-ink) 0%, color-mix(in srgb, var(--c-ink) 70%, var(--c-void)) 100%); }
-  .rail::before{
-    content:""; position:absolute; inset:0; z-index:0; pointer-events:none;
-    background-image:
-      radial-gradient(circle at center, color-mix(in srgb, var(--accent-idle) 75%, white 25%) 0, transparent 1.6px),
-      radial-gradient(circle at center, var(--c-mist) 0, transparent 1.1px);
-    background-size: 23px 23px, 15px 15px;
-    background-position: 0 0, 8px 10px;
-    opacity:.16;
-    -webkit-mask:linear-gradient(to bottom, transparent 0, #000 12%, #000 86%, transparent 100%);
-            mask:linear-gradient(to bottom, transparent 0, #000 12%, #000 86%, transparent 100%);
-    animation: railDots 8.5s ease-in-out infinite;
-  }
-  @keyframes railDots{
-    0%,100%{ background-size:23px 23px, 15px 15px; opacity:.13; }
-    50%    { background-size:26px 26px, 13px 13px; opacity:.22; }
+  /* canvas-rendered living cell grid sits behind the rail's content */
+  #railCanvas{
+    position:absolute; inset:0; z-index:0; pointer-events:none;
+    -webkit-mask:linear-gradient(to bottom, transparent 0, #000 9%, #000 90%, transparent 100%);
+            mask:linear-gradient(to bottom, transparent 0, #000 9%, #000 90%, transparent 100%);
   }
   /* keep the rail's content crisply above the texture */
   .rail-logo, .rail-btn, .rail-spacer, .rail-pulse{ position:relative; z-index:1; }
@@ -1019,6 +1009,7 @@
 
   <div class="shell">
     <nav class="rail" id="rail">
+      <canvas id="railCanvas" aria-hidden="true"></canvas>
       <div class="rail-logo">ST</div>
 
       <button class="rail-btn active" data-view="timer" title="Timer">
@@ -2678,6 +2669,102 @@
     { key:"alive",  idle:null,      active:null,       name:"Alive" }
   ];
 
+  /* ---- colour helper: "#rrggbb" or "rgb(...)" -> [r,g,b] --------------- */
+  function parseColor(str){
+    str = (str||"").trim();
+    if(str.charAt(0) === "#"){
+      let h = str.slice(1);
+      if(h.length === 3) h = h.split("").map(function(c){ return c+c; }).join("");
+      const n = parseInt(h, 16);
+      if(isNaN(n)) return null;
+      return [(n>>16)&255, (n>>8)&255, n&255];
+    }
+    const m = str.match(/rgba?\(([^)]+)\)/);
+    if(m){ const p = m[1].split(",").map(function(s){ return parseFloat(s); }); return [p[0]|0, p[1]|0, p[2]|0]; }
+    return null;
+  }
+
+  /* ======================================================================
+     LIVING SIDEBAR — a precise grid of square cells that breathe in
+     coordinated waves, with energy pulses traveling through the matrix,
+     micro-shadows, top highlights and subtle cursor parallax. Runs in every
+     theme; sits behind the rail's icons.
+     =================================================================== */
+  let railRAF = null;
+  function startRailGrid(){
+    const rail = document.getElementById("rail");
+    const canvas = document.getElementById("railCanvas");
+    if(!rail || !canvas || railRAF) return;
+    const ctx = canvas.getContext("2d");
+    const dpr = Math.min(window.devicePixelRatio || 1, 2);
+    let W = 0, H = 0, cols = 0, rows = 0;
+    const CELL = 11, SQ = 7;
+    let accent = [120, 130, 240];
+
+    function readAccent(){
+      const c = getComputedStyle(document.documentElement).getPropertyValue("--accent-idle");
+      const r = parseColor(c); if(r) accent = r;
+    }
+    function resize(){
+      const r = rail.getBoundingClientRect();
+      W = Math.max(1, r.width); H = Math.max(1, r.height);
+      canvas.width = Math.round(W*dpr); canvas.height = Math.round(H*dpr);
+      canvas.style.width = W+"px"; canvas.style.height = H+"px";
+      ctx.setTransform(dpr,0,0,dpr,0,0);
+      cols = Math.ceil(W/CELL)+1; rows = Math.ceil(H/CELL)+1;
+    }
+    readAccent(); resize();
+    window.addEventListener("resize", resize);
+
+    let pTX=0, pTY=0, pX=0, pY=0;
+    window.addEventListener("mousemove", function(e){
+      const r = rail.getBoundingClientRect();
+      pTX = ((e.clientX - r.left)/Math.max(1,r.width) - 0.5);
+      pTY = ((e.clientY - r.top)/Math.max(1,r.height) - 0.5);
+    });
+
+    const pulses = []; const R = 3.4;
+    function spawn(){ pulses.push({ gx: Math.random()*cols, gy: -R, vy: 0.04 + Math.random()*0.04, dx: (Math.random()-0.5)*0.02, life: 0 }); }
+    let t = 0, lastAcc = 0;
+    function draw(){
+      railRAF = requestAnimationFrame(draw); t += 1;
+      if(t - lastAcc > 40){ readAccent(); lastAcc = t; }
+      pX += (pTX - pX)*0.06; pY += (pTY - pY)*0.06;
+      const ox = pX*7, oy = pY*7;
+      ctx.clearRect(0,0,W,H);
+
+      if(Math.random() < 0.018 && pulses.length < 3) spawn();
+      for(let i=pulses.length-1;i>=0;i--){ const pu = pulses[i]; pu.gy += pu.vy; pu.gx += pu.dx; pu.life += 1; if(pu.gy > rows+R) pulses.splice(i,1); }
+
+      const ar = accent[0], ag = accent[1], ab = accent[2];
+      for(let cy=0; cy<rows; cy++){
+        for(let cx=0; cx<cols; cx++){
+          const w1 = Math.sin(cx*0.55 + cy*0.22 - t*0.03);
+          const w2 = Math.sin(cx*0.18 - cy*0.40 - t*0.018);
+          const w = (w1 + w2)*0.5;
+          let glow = 0;
+          for(let k=0;k<pulses.length;k++){
+            const pu = pulses[k]; const dx = cx-pu.gx, dy = cy-pu.gy; const d2 = dx*dx + dy*dy;
+            const env = Math.min(1, pu.life/18) * Math.max(0, 1 - (pu.gy - rows)/R);
+            glow += Math.exp(-d2/(2*R*R)) * 0.95 * Math.max(0, env);
+          }
+          if(glow > 1) glow = 1;
+          const s = SQ*(0.5 + 0.32*w);
+          const px = cx*CELL + (CELL-s)/2 + ox, py = cy*CELL + (CELL-s)/2 + oy;
+          const baseA = 0.045 + 0.05*(w*0.5 + 0.5);
+          ctx.fillStyle = "rgba(0,0,0," + (0.22*(baseA + glow*0.5)) + ")";
+          ctx.fillRect(px+0.7, py+0.9, s, s);
+          const lr = Math.round(120 + (ar-120)*glow), lg = Math.round(132 + (ag-132)*glow), lb = Math.round(170 + (ab-170)*glow);
+          const a = Math.min(0.9, baseA + glow*0.85);
+          ctx.fillStyle = "rgba(" + lr + "," + lg + "," + lb + "," + a + ")";
+          ctx.fillRect(px, py, s, s);
+          if(glow > 0.04){ ctx.fillStyle = "rgba(255,255,255," + (0.18*glow) + ")"; ctx.fillRect(px, py, s, 1); }
+        }
+      }
+    }
+    draw();
+  }
+
   /* ---- particle canvas -------------------------------------------------- */
   let aliveRAF = null;
 
@@ -2704,101 +2791,122 @@
     resize();
     window.addEventListener("resize", resize);
 
-    // Hues we slowly travel through to keep the whole thing feeling "alive".
-    const HUES = [232, 258, 286, 156, 188]; // indigo -> violet -> magenta -> mint -> cyan
-
-    // Fine drifting particles (subtle dust/sparkle, NOT party balloons).
-    const PCOUNT = window.innerWidth < 640 ? 36 : 58;
-    const particles = [];
-    for(let i = 0; i < PCOUNT; i++){
-      particles.push({
-        x: Math.random() * W,
-        y: Math.random() * H,
-        r: 0.6 + Math.random() * 1.5,
-        vx: (Math.random() - 0.5) * 0.14,
-        vy: (Math.random() - 0.5) * 0.14,
-        twOff: Math.random() * Math.PI * 2,
-        twSpd: 0.006 + Math.random() * 0.010,
-        hueOff: (Math.random() * 40) - 20
-      });
+    // A deep, volumetric ribbon environment — layered illuminated surfaces
+    // suspended in 3D-ish space, with light pulses, floating nodes that
+    // occasionally connect, atmospheric depth and subtle cursor parallax.
+    const HUES = [230, 258, 286, 196, 210]; // indigo -> violet -> magenta -> cyan -> azure
+    const RN = 9;
+    let ribbons = [], nodes = [];
+    function rnd(a, b){ return a + Math.random() * (b - a); }
+    function buildScene(){
+      ribbons = [];
+      for(let i = 0; i < RN; i++){
+        const depth = i / (RN - 1);                 // 0 = far, 1 = near
+        ribbons.push({
+          depth: depth,
+          yf: 0.10 + 0.80 * ((i + rnd(-0.25, 0.25)) / (RN - 1)),
+          amp: (0.03 + 0.10 * depth),
+          thick: 7 + 42 * depth,
+          spd: 0.00026 + 0.0013 * depth,
+          k1: 0.0022 + rnd(0, 0.0012),
+          k2: 0.006 + rnd(0, 0.004),
+          phase: rnd(0, Math.PI * 2),
+          hueOff: i * 7,
+          pulses: []
+        });
+      }
+      ribbons.sort(function(a, b){ return a.depth - b.depth; });
+      const NN = W < 640 ? 9 : 18;
+      nodes = [];
+      for(let i = 0; i < NN; i++){
+        nodes.push({ x: rnd(0, W), y: rnd(0, H), depth: rnd(0.1, 1),
+          vx: rnd(-0.08, 0.08), vy: rnd(-0.05, 0.05), ph: rnd(0, Math.PI * 2), sp: rnd(0.004, 0.01) });
+      }
     }
 
-    const RIBBONS = 5;
-    let t = 0;
+    let mTX = 0, mTY = 0, mX = 0, mY = 0;
+    window.addEventListener("mousemove", function(e){ mTX = (e.clientX / Math.max(1, W) - 0.5); mTY = (e.clientY / Math.max(1, H) - 0.5); });
 
+    let t = 0, lastW = 0, lastH = 0;
     function draw(){
-      aliveRAF = requestAnimationFrame(draw);
-      t += 1;
-      const light = prefersLight();
-
+      aliveRAF = requestAnimationFrame(draw); t += 1;
+      if(W !== lastW || H !== lastH){ buildScene(); lastW = W; lastH = H; }
+      mX += (mTX - mX) * 0.04; mY += (mTY - mY) * 0.04;
+      const light = prefersLight(); const comp = light ? "multiply" : "screen";
       ctx.clearRect(0, 0, W, H);
-
-      // Smoothly interpolate a base hue as we travel along HUES.
-      const phase = t * 0.0010;
-      const i0 = Math.floor(phase) % HUES.length;
-      const i1 = (i0 + 1) % HUES.length;
-      const mix = phase - Math.floor(phase);
+      const phase = t * 0.0009, i0 = Math.floor(phase) % HUES.length, i1 = (i0 + 1) % HUES.length, mix = phase - Math.floor(phase);
       const baseHue = HUES[i0] + (HUES[i1] - HUES[i0]) * mix;
+      const L1 = light ? 64 : 68, L2 = light ? 52 : 56, L3 = 40, EL = light ? 52 : 72;
 
-      // ---- breathing, flowing ribbon lines (the clean moving lines) -------
-      ctx.globalCompositeOperation = light ? "multiply" : "screen";
-      ctx.lineWidth = 1.4;
-      for(let r = 0; r < RIBBONS; r++){
-        const yBase = H * (0.16 + r * 0.165);
-        // amplitude itself breathes in and out
-        const amp = (H * 0.05) * (1 + 0.45 * Math.sin(t * 0.004 + r * 1.1));
-        const speed = 0.0012 + r * 0.00045;
-        const lineHue = baseHue + r * 13;
-        const sat = light ? 58 : 72;
-        const lum = light ? 60 : 60;
-        const alpha = light ? 0.11 : 0.15;
-
-        ctx.beginPath();
-        for(let x = 0; x <= W; x += 8){
-          const y = yBase
-            + Math.sin(x * 0.0042 + t * speed + r) * amp
-            + Math.sin(x * 0.011 + t * speed * 1.7) * amp * 0.30;
-          if(x === 0) ctx.moveTo(x, y); else ctx.lineTo(x, y);
+      // ---- ribbons, drawn far -> near (painter's algorithm) ----
+      for(let r = 0; r < ribbons.length; r++){
+        const rb = ribbons[r], d = rb.depth;
+        const ox = mX * (6 + d * 26), oy = mY * (4 + d * 16);
+        const yBase = H * rb.yf + oy, amp = H * rb.amp, hue = baseHue + rb.hueOff;
+        const aFill = (light ? 0.07 : 0.05) + (light ? 0.12 : 0.11) * d, aEdge = 0.10 + 0.22 * d;
+        const step = 14, pts = [];
+        for(let x = -20; x <= W + 20; x += step){
+          const cy = yBase + Math.sin(x * rb.k1 + t * rb.spd + rb.phase) * amp + Math.sin(x * rb.k2 - t * rb.spd * 1.4) * amp * 0.32;
+          const half = (rb.thick * 0.5) * (0.72 + 0.28 * Math.sin(x * 0.0026 + t * rb.spd * 1.3 + rb.phase));
+          pts.push({ x: x + ox, cy: cy, half: half });
         }
-        const grad = ctx.createLinearGradient(0, 0, W, 0);
-        grad.addColorStop(0,   "hsla(" + lineHue + "," + sat + "%," + lum + "%,0)");
-        grad.addColorStop(0.5, "hsla(" + lineHue + "," + sat + "%," + lum + "%," + alpha + ")");
-        grad.addColorStop(1,   "hsla(" + (lineHue + 34) + "," + sat + "%," + lum + "%,0)");
-        ctx.strokeStyle = grad;
-        ctx.stroke();
+        ctx.globalCompositeOperation = comp;
+        ctx.beginPath(); ctx.moveTo(pts[0].x, pts[0].cy - pts[0].half);
+        for(let i = 1; i < pts.length; i++) ctx.lineTo(pts[i].x, pts[i].cy - pts[i].half);
+        for(let i = pts.length - 1; i >= 0; i--) ctx.lineTo(pts[i].x, pts[i].cy + pts[i].half);
+        ctx.closePath();
+        const g = ctx.createLinearGradient(0, yBase - rb.thick, 0, yBase + rb.thick);
+        g.addColorStop(0,   "hsla(" + hue + ",70%," + L1 + "%," + (aFill * 1.15) + ")");
+        g.addColorStop(0.5, "hsla(" + (hue + 10) + ",72%," + L2 + "%," + (aFill * 0.7) + ")");
+        g.addColorStop(1,   "hsla(" + (hue + 22) + ",70%," + L3 + "%," + (aFill * 0.25) + ")");
+        ctx.fillStyle = g; ctx.fill();
+        // bright centerline (the illuminated crest of the ribbon)
+        ctx.beginPath();
+        for(let i = 0; i < pts.length; i++){ if(i === 0) ctx.moveTo(pts[i].x, pts[i].cy); else ctx.lineTo(pts[i].x, pts[i].cy); }
+        ctx.lineWidth = 1 + d * 1.4; ctx.strokeStyle = "hsla(" + hue + ",80%," + EL + "%," + aEdge + ")"; ctx.stroke();
+        // pulses of light traveling through the ribbon
+        if(Math.random() < 0.004 + 0.004 * d && rb.pulses.length < 2) rb.pulses.push({ x: -40, sp: 1.6 + 2.6 * d, life: 0 });
+        for(let i = rb.pulses.length - 1; i >= 0; i--){
+          const pu = rb.pulses[i]; pu.x += pu.sp; pu.life += 1;
+          if(pu.x > W + 40){ rb.pulses.splice(i, 1); continue; }
+          const xi = Math.max(0, Math.min(pts.length - 1, Math.round((pu.x + 20) / step)));
+          const py = pts[xi] ? pts[xi].cy : yBase, rad = 40 + 60 * d;
+          const gr = ctx.createRadialGradient(pu.x + ox, py, 0, pu.x + ox, py, rad);
+          gr.addColorStop(0, "hsla(" + hue + ",90%," + (light ? 60 : 75) + "%," + (0.5 * (0.4 + 0.6 * d)) + ")");
+          gr.addColorStop(1, "hsla(" + hue + ",90%,70%,0)");
+          ctx.fillStyle = gr; ctx.beginPath(); ctx.arc(pu.x + ox, py, rad, 0, Math.PI * 2); ctx.fill();
+        }
       }
 
-      // ---- fine twinkling particles --------------------------------------
-      ctx.globalCompositeOperation = light ? "multiply" : "screen";
-      particles.forEach(function(p){
-        p.x += p.vx; p.y += p.vy;
-        if(p.x < -5) p.x = W + 5; else if(p.x > W + 5) p.x = -5;
-        if(p.y < -5) p.y = H + 5; else if(p.y > H + 5) p.y = -5;
+      // ---- floating light nodes + their connections ----
+      ctx.globalCompositeOperation = comp;
+      for(let i = 0; i < nodes.length; i++){
+        const n = nodes[i];
+        n.x += n.vx * (0.3 + n.depth); n.y += n.vy * (0.3 + n.depth);
+        if(n.x < -10) n.x = W + 10; else if(n.x > W + 10) n.x = -10;
+        if(n.y < -10) n.y = H + 10; else if(n.y > H + 10) n.y = -10;
+        const ox = mX * (6 + n.depth * 26), oy = mY * (4 + n.depth * 16);
+        const tw = 0.5 + 0.5 * Math.sin(t * n.sp + n.ph), rr = (1 + n.depth * 2.2) * (0.7 + 0.5 * tw), hue = baseHue + 30;
+        const gx = n.x + ox, gy = n.y + oy;
+        const gl = ctx.createRadialGradient(gx, gy, 0, gx, gy, rr * 6);
+        gl.addColorStop(0, "hsla(" + hue + ",80%," + (light ? 60 : 78) + "%," + (0.5 * tw * (0.4 + 0.6 * n.depth)) + ")");
+        gl.addColorStop(1, "hsla(" + hue + ",80%,78%,0)");
+        ctx.fillStyle = gl; ctx.beginPath(); ctx.arc(gx, gy, rr * 6, 0, Math.PI * 2); ctx.fill();
+        ctx.fillStyle = "hsla(" + hue + ",85%," + (light ? 55 : 82) + "%," + (0.55 * tw) + ")"; ctx.beginPath(); ctx.arc(gx, gy, rr, 0, Math.PI * 2); ctx.fill();
+        for(let j = i + 1; j < nodes.length; j++){
+          const m = nodes[j]; const dx = n.x - m.x, dy = n.y - m.y, dd = Math.sqrt(dx * dx + dy * dy);
+          if(dd < 170){ const oxm = mX * (6 + m.depth * 26), oym = mY * (4 + m.depth * 16);
+            ctx.strokeStyle = "hsla(" + (baseHue + 30) + ",80%," + (light ? 55 : 72) + "%," + (0.10 * (1 - dd / 170)) + ")"; ctx.lineWidth = 0.7;
+            ctx.beginPath(); ctx.moveTo(gx, gy); ctx.lineTo(m.x + oxm, m.y + oym); ctx.stroke(); }
+        }
+      }
 
-        const tw = Math.sin(t * p.twSpd + p.twOff);
-        const a = (light ? 0.20 : 0.48) * (0.5 + 0.5 * tw);
-        const rr = p.r * (1 + 0.4 * tw);
-        const ph = baseHue + p.hueOff;
-        const s = light ? 48 : 72;
-        const l = light ? 56 : 72;
-
-        // soft halo
-        const glow = ctx.createRadialGradient(p.x, p.y, 0, p.x, p.y, rr * 4);
-        glow.addColorStop(0, "hsla(" + ph + "," + s + "%," + l + "%," + (a * 0.5) + ")");
-        glow.addColorStop(1, "hsla(" + ph + "," + s + "%," + l + "%,0)");
-        ctx.beginPath();
-        ctx.arc(p.x, p.y, rr * 4, 0, Math.PI * 2);
-        ctx.fillStyle = glow;
-        ctx.fill();
-
-        // crisp core
-        ctx.beginPath();
-        ctx.arc(p.x, p.y, rr, 0, Math.PI * 2);
-        ctx.fillStyle = "hsla(" + ph + "," + s + "%," + l + "%," + a + ")";
-        ctx.fill();
-      });
-
+      // ---- atmospheric depth: a soft vignette pulls focus to the centre ----
       ctx.globalCompositeOperation = "source-over";
+      const vig = ctx.createRadialGradient(W * 0.5, H * 0.46, Math.min(W, H) * 0.2, W * 0.5, H * 0.5, Math.max(W, H) * 0.75);
+      if(light){ vig.addColorStop(0, "rgba(238,241,249,0)"); vig.addColorStop(1, "rgba(214,220,238,0.45)"); }
+      else { vig.addColorStop(0, "rgba(5,6,13,0)"); vig.addColorStop(1, "rgba(3,4,10,0.55)"); }
+      ctx.fillStyle = vig; ctx.fillRect(0, 0, W, H);
     }
 
     draw();
@@ -3373,6 +3481,7 @@
     bootLoading.style.display = "none";
     authScreenEl.classList.remove("open");
     shellEl.style.display = "flex";
+    startRailGrid();   // ignite the living sidebar grid (runs in every theme)
     document.getElementById("manDate").value = todayStr();
     await loadAllData();
     renderAll();
