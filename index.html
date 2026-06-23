@@ -2797,7 +2797,7 @@
   }
 
   /* ======================================================================
-     RAIL CANVAS — LIVING HEXAGONAL SKIN
+     RAIL CANVAS — LIVING SQUARE SKIN
      =================================================================== */
   let railRAF = null;
 
@@ -2806,99 +2806,83 @@
     if(!canvas) return;
     const ctx = canvas.getContext("2d");
 
+    const rail = document.getElementById("rail");
+
     function resize(){
-      const rail = document.getElementById("rail");
       canvas.width  = rail ? rail.offsetWidth  : 76;
       canvas.height = rail ? rail.offsetHeight : window.innerHeight;
     }
     resize();
     const ro = new ResizeObserver(resize);
-    ro.observe(document.getElementById("rail"));
+    ro.observe(rail);
 
-    // ---- Hex grid setup ------------------------------------------------
-    const HEX_R  = 7.5;     // base circumradius of each hexagon
-    const GAP    = 1.2;      // gap between hexagons
-    const HW     = Math.sqrt(3) * (HEX_R + GAP);   // horizontal spacing
-    const HH     = 1.5      * (HEX_R + GAP);        // vertical spacing
+    // ---- Grid constants ------------------------------------------------
+    const SLOT = 14;   // px per cell slot (cell + gap)
+    const GAP  = 1.2;  // gap between cells
 
-    function buildGrid(){
-      const cols  = Math.ceil(canvas.width  / HW) + 2;
-      const rows  = Math.ceil(canvas.height / HH) + 2;
-      const cells = [];
-      for(let r = -1; r < rows; r++){
-        for(let c = -1; c < cols; c++){
-          const x = c * HW + (r % 2 === 0 ? 0 : HW / 2);
-          const y = r * HH;
-          cells.push({ x, y,
-            cx: c, cy: r,          // grid coords for noise lookup
-            scale: 1,              // current draw scale (driven by noise)
-            glow:  0               // 0-1 glow intensity
-          });
-        }
-      }
-      return cells;
-    }
-    let cells = buildGrid();
-
-    // Rebuild grid when canvas resizes
-    const origResize = resize;
-    function resizeAndRebuild(){
-      origResize();
-      cells = buildGrid();
-    }
-    ro.disconnect();
-    const ro2 = new ResizeObserver(resizeAndRebuild);
-    ro2.observe(document.getElementById("rail"));
+    // Scale range: tight so gap is never larger than the base layer
+    // At minimum scale (0.78), cell = 0.78*(SLOT-GAP) = ~10px, gap each side ~2px
+    // The base-layer fill covers the gap exactly
+    const SCALE_MIN = 0.78;
+    const SCALE_MAX = 1.00;
 
     // ---- Wave system ---------------------------------------------------
-    // Multiple independent waves travel across the grid at random angles.
-    // Each wave has: origin, direction, speed, wavelength, amplitude, age.
-    const MAX_WAVES = 5;
+    const MAX_WAVES = 4;
     const waves = [];
 
     function spawnWave(){
       const angle = Math.random() * Math.PI * 2;
       waves.push({
-        ox: canvas.width  * (.2 + Math.random() * .6),
-        oy: canvas.height * (.1 + Math.random() * .8),
-        dx: Math.cos(angle),
-        dy: Math.sin(angle),
-        speed:      .4 + Math.random() * .6,
-        wavelength: 80 + Math.random() * 140,
-        amplitude:  .28 + Math.random() * .30,
+        ox:         canvas.width  * (0.1 + Math.random() * 0.8),
+        oy:         canvas.height * (0.0 + Math.random() * 1.0),
+        dx:         Math.cos(angle),
+        dy:         Math.sin(angle),
+        speed:      0.35 + Math.random() * 0.55,
+        wavelength: 70  + Math.random() * 130,
+        amplitude:  0.30 + Math.random() * 0.28,
         phase:      0,
         life:       0,
-        maxLife:    320 + Math.random() * 280,
-        hueShift:   Math.random() * 360
+        maxLife:    300 + Math.random() * 260
       });
     }
-    // seed initial waves
     for(let i = 0; i < 3; i++) spawnWave();
 
-    // ---- base color (cream / translucent dark) --------------------------
-    // We draw on a dark void background; cells are slightly lighter
-    const BASE_FILL   = "rgba(18,20,38,0.88)";
-    const STROKE_BASE = "rgba(255,255,255,0.045)";
-
-    function drawHex(x, y, r){
-      ctx.beginPath();
-      for(let i = 0; i < 6; i++){
-        const a = Math.PI/180 * (60*i - 30);
-        const px = x + r * Math.cos(a);
-        const py = y + r * Math.sin(a);
-        i === 0 ? ctx.moveTo(px,py) : ctx.lineTo(px,py);
-      }
-      ctx.closePath();
+    // ---- Colour helpers ------------------------------------------------
+    // Creamy warm dark palette
+    // floor  = near-void, same as a fully-recessed cell
+    // crest  = warm cream highlight at wave peak
+    function lerpColor(t){
+      // t = 0 → dark warm: hsl(36,10%,8%)  → rgb(22,19,16)
+      // t = 1 → warm cream: hsl(38,16%,22%) → rgb(66,58,47)
+      const r = Math.round(22 + t * 44);
+      const g = Math.round(19 + t * 39);
+      const b = Math.round(16 + t * 31);
+      return [r, g, b];
     }
 
-    // ---- main loop ------------------------------------------------------
-    let t = 0;
+    // ---- Current accent for edge glow ----------------------------------
+    function getAccent(){
+      try{
+        const v = getComputedStyle(document.documentElement)
+          .getPropertyValue("--accent-idle").trim();
+        if(v && v[0]==="#" && v.length>=7){
+          return [parseInt(v.slice(1,3),16),
+                  parseInt(v.slice(3,5),16),
+                  parseInt(v.slice(5,7),16)];
+        }
+      }catch(e){}
+      return [79,95,230];
+    }
 
+    // ---- Main loop -----------------------------------------------------
     function tick(){
       railRAF = requestAnimationFrame(tick);
-      t++;
 
-      // Manage wave lifecycle
+      const W = canvas.width, H = canvas.height;
+      const cols = Math.ceil(W / SLOT) + 1;
+      const rows = Math.ceil(H / SLOT) + 1;
+
+      // Advance waves
       for(let i = waves.length-1; i >= 0; i--){
         waves[i].phase += waves[i].speed;
         waves[i].life++;
@@ -2906,85 +2890,66 @@
       }
       while(waves.length < MAX_WAVES) spawnWave();
 
-      // Clear
-      ctx.clearRect(0,0,canvas.width,canvas.height);
+      const accent = getAccent();
 
-      // Dark base background
-      ctx.fillStyle = "rgba(6,7,14,1)";
-      ctx.fillRect(0,0,canvas.width,canvas.height);
+      // ── Step 1: fill entire canvas with the "floor" (recessed cell colour)
+      const [fr,fg,fb] = lerpColor(0);
+      ctx.fillStyle = "rgb("+fr+","+fg+","+fb+")";
+      ctx.fillRect(0,0,W,H);
 
-      // Get current accent color from CSS variable for glow tinting
-      let accentR=79, accentG=95, accentB=230;
-      try{
-        const v = getComputedStyle(document.documentElement)
-          .getPropertyValue("--accent-idle").trim();
-        if(v && v[0]==="#" && v.length>=7){
-          accentR = parseInt(v.slice(1,3),16);
-          accentG = parseInt(v.slice(3,5),16);
-          accentB = parseInt(v.slice(5,7),16);
+      // ── Step 2: draw each cell at its scaled size centered in slot
+      for(let row = 0; row < rows; row++){
+        for(let col = 0; col < cols; col++){
+          const cx = col * SLOT + SLOT/2;
+          const cy = row * SLOT + SLOT/2;
+
+          // Sum wave contributions
+          let noise = 0;
+          waves.forEach(function(w){
+            const proj = (cx - w.ox)*w.dx + (cy - w.oy)*w.dy;
+            const lifeFrac = w.life / w.maxLife;
+            const env = Math.sin(lifeFrac * Math.PI);
+            noise += Math.sin((proj - w.phase * w.speed * 2) / w.wavelength * Math.PI*2)
+                     * w.amplitude * env;
+          });
+
+          // Normalise 0..1
+          const n = Math.max(0, Math.min(1, (noise + 1) / 2));
+
+          // Scale: SCALE_MIN at n=0, SCALE_MAX at n=1
+          const scale = SCALE_MIN + n * (SCALE_MAX - SCALE_MIN);
+          const cellSize = (SLOT - GAP) * scale;
+
+          const x = cx - cellSize/2;
+          const y = cy - cellSize/2;
+
+          // Fill colour — warm cream, brighter at crest
+          const [r,g,b] = lerpColor(n);
+          ctx.fillStyle = "rgb("+r+","+g+","+b+")";
+          ctx.fillRect(x, y, cellSize, cellSize);
+
+          // Neon edge glow — only on crests (top 45% of range)
+          const glowT = Math.max(0, (n - 0.55) / 0.45);
+          if(glowT > 0){
+            const glowAlpha = glowT * 0.75;
+            const blur      = glowT * 5;
+            ctx.save();
+            ctx.shadowColor  = "rgba("+accent[0]+","+accent[1]+","+accent[2]+","+glowAlpha+")";
+            ctx.shadowBlur   = blur;
+            ctx.strokeStyle  = "rgba("+accent[0]+","+accent[1]+","+accent[2]+","+(glowAlpha*0.55)+")";
+            ctx.lineWidth    = 0.8;
+            ctx.strokeRect(x, y, cellSize, cellSize);
+            ctx.restore();
+          }
         }
-      }catch(e){}
+      }
 
-      // Compute noise value for each cell
-      cells.forEach(function(cell){
-        let noise = 0;
-        waves.forEach(function(w){
-          // Project cell onto wave travel direction
-          const dx = cell.x - w.ox;
-          const dy = cell.y - w.oy;
-          const proj = dx*w.dx + dy*w.dy;
-          // Fade wave in and out over lifetime
-          const lifeFrac = w.life / w.maxLife;
-          const envelope = Math.sin(lifeFrac * Math.PI); // 0→1→0
-          // Sine wave along projection axis
-          const wave = Math.sin((proj - w.phase * w.speed * 1.8) / w.wavelength * Math.PI * 2);
-          noise += wave * w.amplitude * envelope;
-        });
-        // Clamp and normalize to 0..1
-        const n = Math.max(0, Math.min(1, (noise + 1) / 2));
-        // Volume conservation: scale is 0.55 at rest, up to 1.18 at peak
-        cell.scale = 0.55 + n * 0.63;
-        cell.glow  = Math.max(0, n - 0.62) / 0.38; // only top 38% of range glows
-      });
-
-      // Draw back-to-front: dim cells first, glowing cells on top
-      // Sort by scale so big cells render on top of small ones
-      const sorted = cells.slice().sort(function(a,b){ return a.scale - b.scale; });
-
-      sorted.forEach(function(cell){
-        const r = HEX_R * cell.scale;
-        drawHex(cell.x, cell.y, r);
-
-        // Fill — cream tint that brightens with height
-        const brightness = 0.07 + cell.scale * 0.10;
-        ctx.fillStyle = "rgba("+(10+Math.round(brightness*180))+","
-          +(12+Math.round(brightness*160))+","
-          +(24+Math.round(brightness*140))+","
-          + (0.55 + cell.scale*0.35)+")";
-        ctx.fill();
-
-        // Stroke — faint edge line
-        ctx.strokeStyle = "rgba(255,255,255,"+(0.028 + cell.scale*0.05)+")";
-        ctx.lineWidth = 0.6;
-        ctx.stroke();
-
-        // Glow on peaks
-        if(cell.glow > 0){
-          const g = ctx.createRadialGradient(cell.x,cell.y,0,cell.x,cell.y,r*2.8);
-          g.addColorStop(0, "rgba("+accentR+","+accentG+","+accentB+","+(cell.glow*.38)+")");
-          g.addColorStop(1, "rgba("+accentR+","+accentG+","+accentB+",0)");
-          drawHex(cell.x, cell.y, r * 2.4);
-          ctx.fillStyle = g;
-          ctx.fill();
-        }
-      });
-
-      // Subtle right-edge fade (so it blends into the main content area)
-      const fade = ctx.createLinearGradient(canvas.width-18, 0, canvas.width, 0);
-      fade.addColorStop(0,"rgba(6,7,14,0)");
-      fade.addColorStop(1,"rgba(6,7,14,0.85)");
+      // ── Step 3: soft right-edge fade into content area
+      const fade = ctx.createLinearGradient(W - 20, 0, W, 0);
+      fade.addColorStop(0, "rgba("+fr+","+fg+","+fb+",0)");
+      fade.addColorStop(1, "rgba(6,7,14,0.92)");
       ctx.fillStyle = fade;
-      ctx.fillRect(0,0,canvas.width,canvas.height);
+      ctx.fillRect(0, 0, W, H);
     }
 
     tick();
