@@ -846,6 +846,146 @@
 
   /* smoother momentum scrolling in the main stage */
   .stage{ scroll-behavior:smooth; }
+
+  /* ========================================================================
+     ✦ PREMIUM PASS — additive depth, lighting, texture & motion.
+     Pure visual polish layered on top of the existing layout (no structural
+     or UX changes). Lives last in the stylesheet so it refines, not replaces.
+     ===================================================================== */
+
+  /* ---- LIVING SIDEBAR: a breathing dot-matrix texture --------------------
+     Two offset dot grids gently grow & shrink in counter-phase, giving the
+     rail a quiet, futuristic "living surface" feel (like the Start button's
+     pixels, but slowly pulsing). Masked so it fades at the top & bottom. */
+  .rail{ background:linear-gradient(180deg, var(--c-ink) 0%, color-mix(in srgb, var(--c-ink) 70%, var(--c-void)) 100%); }
+  .rail::before{
+    content:""; position:absolute; inset:0; z-index:0; pointer-events:none;
+    background-image:
+      radial-gradient(circle at center, color-mix(in srgb, var(--accent-idle) 75%, white 25%) 0, transparent 1.6px),
+      radial-gradient(circle at center, var(--c-mist) 0, transparent 1.1px);
+    background-size: 23px 23px, 15px 15px;
+    background-position: 0 0, 8px 10px;
+    opacity:.16;
+    -webkit-mask:linear-gradient(to bottom, transparent 0, #000 12%, #000 86%, transparent 100%);
+            mask:linear-gradient(to bottom, transparent 0, #000 12%, #000 86%, transparent 100%);
+    animation: railDots 8.5s ease-in-out infinite;
+  }
+  @keyframes railDots{
+    0%,100%{ background-size:23px 23px, 15px 15px; opacity:.13; }
+    50%    { background-size:26px 26px, 13px 13px; opacity:.22; }
+  }
+  /* keep the rail's content crisply above the texture */
+  .rail-logo, .rail-btn, .rail-spacer, .rail-pulse{ position:relative; z-index:1; }
+  .rail-btn:hover{ transform:translateY(-1px); }
+  .rail-btn.active{
+    background:linear-gradient(180deg, color-mix(in srgb, var(--accent-idle) 22%, transparent), var(--accent-idle-soft));
+    box-shadow:0 0 0 1px var(--accent-idle-soft) inset, 0 6px 18px -10px var(--accent-idle-soft);
+  }
+  .rail-logo{ position:relative; overflow:hidden; }
+  .rail-logo::after{   /* a slow glass glint sweeping across the logo */
+    content:""; position:absolute; inset:0;
+    background:linear-gradient(120deg, transparent 30%, rgba(255,255,255,.35) 48%, transparent 62%);
+    transform:translateX(-120%); animation:logoSheen 7s ease-in-out infinite;
+  }
+  @keyframes logoSheen{ 0%,72%{ transform:translateX(-120%);} 86%,100%{ transform:translateX(120%);} }
+
+  /* ---- SURFACES: layered elevation + a hairline top highlight ----------- */
+  .panel{
+    background:linear-gradient(180deg, color-mix(in srgb, var(--c-ink) 94%, white 6%) 0%, var(--c-ink) 60%);
+    box-shadow:
+      inset 0 1px 0 rgba(255,255,255,.05),
+      0 1px 2px rgba(0,0,0,.3),
+      0 22px 48px -28px rgba(0,0,0,.75);
+  }
+  .stat-card{
+    background:linear-gradient(180deg, color-mix(in srgb, var(--c-ink) 92%, white 8%) 0%, var(--c-ink) 70%);
+    box-shadow:
+      inset 0 1px 0 rgba(255,255,255,.05),
+      0 14px 30px -22px rgba(0,0,0,.7);
+  }
+
+  /* ---- BUTTONS: dimensional fills, soft lift, realistic light ----------- */
+  .btn-primary{
+    background:linear-gradient(180deg, color-mix(in srgb, var(--accent-idle) 88%, white 12%), var(--accent-idle));
+    box-shadow:
+      inset 0 1px 0 rgba(255,255,255,.3),
+      0 8px 20px -10px var(--accent-idle-soft);
+    transition:filter .2s var(--ease), transform .16s var(--ease), box-shadow .2s var(--ease);
+  }
+  .btn-primary:hover{
+    filter:brightness(1.07); transform:translateY(-1px);
+    box-shadow:inset 0 1px 0 rgba(255,255,255,.35), 0 12px 26px -10px var(--accent-idle-soft);
+  }
+  .btn-primary:active{ transform:translateY(0) scale(.98); }
+  .btn-secondary{
+    background:color-mix(in srgb, var(--c-ink-2) 75%, transparent);
+    box-shadow:inset 0 1px 0 rgba(255,255,255,.05);
+    transition:border-color .2s var(--ease), background .2s var(--ease), transform .16s var(--ease), box-shadow .2s var(--ease);
+  }
+  .btn-secondary:hover{ transform:translateY(-1px); box-shadow:inset 0 1px 0 rgba(255,255,255,.08), 0 8px 18px -12px rgba(0,0,0,.6); }
+  .btn-secondary:active{ transform:translateY(0) scale(.98); }
+  .icon-btn{ transition:background .2s var(--ease), border-color .2s var(--ease), color .2s var(--ease), transform .18s var(--ease), box-shadow .2s var(--ease); }
+  .icon-btn:hover{ transform:translateY(-1px); box-shadow:0 8px 18px -12px rgba(0,0,0,.65); }
+  .icon-btn:active{ transform:scale(.9); }
+  .row-icon-btn{ transition:background .15s var(--ease), color .15s var(--ease), transform .15s var(--ease); }
+  .row-icon-btn:hover{ transform:translateY(-1px); }
+  .link-btn{ transition:color .2s var(--ease), opacity .2s var(--ease); }
+  .link-btn:hover{ opacity:.82; }
+
+  /* ---- INPUTS: focus glow ring + subtle inner depth --------------------- */
+  .text-input:focus, .date-input:focus, input:focus, textarea:focus{
+    border-color:var(--accent-idle);
+    box-shadow:0 0 0 3px var(--accent-idle-soft), inset 0 1px 2px rgba(0,0,0,.25);
+  }
+
+  /* ---- TYPOGRAPHY: refined gradient headings & numerals ----------------- */
+  .view-head h1{
+    background:linear-gradient(180deg, var(--c-paper), color-mix(in srgb, var(--c-paper) 68%, var(--c-mist)));
+    -webkit-background-clip:text; background-clip:text; -webkit-text-fill-color:transparent;
+    letter-spacing:-.02em;
+  }
+  .stat-value{
+    background:linear-gradient(180deg, var(--c-paper), color-mix(in srgb, var(--c-paper) 62%, var(--c-mist)));
+    -webkit-background-clip:text; background-clip:text; -webkit-text-fill-color:transparent;
+  }
+  .badge{ box-shadow:inset 0 0 0 1px var(--accent-idle-soft); }
+
+  /* ---- MODALS: deeper elevation, softer glass backdrop ------------------ */
+  .modal{
+    background:linear-gradient(180deg, color-mix(in srgb, var(--c-ink) 92%, white 8%) 0%, var(--c-ink) 55%);
+    box-shadow:
+      inset 0 1px 0 rgba(255,255,255,.06),
+      0 40px 90px -30px rgba(0,0,0,.85);
+  }
+  .modal-overlay{ background:rgba(2,2,8,.68); backdrop-filter:blur(7px); }
+
+  /* ---- TOASTS: floating glass pill -------------------------------------- */
+  .toast{
+    background:color-mix(in srgb, var(--c-ink-2) 82%, transparent);
+    backdrop-filter:blur(10px);
+    box-shadow:inset 0 0 0 1px rgba(255,255,255,.05), 0 16px 32px -12px rgba(0,0,0,.6);
+  }
+
+  /* ---- MOTION: richer page change + staggered list entrance ------------- */
+  @keyframes viewIn{
+    from{ opacity:0; transform:translateY(10px) scale(.995); }
+    to  { opacity:1; transform:translateY(0)    scale(1); }
+  }
+  .session-row{ animation:rowIn .42s var(--ease) backwards; }
+  .session-row:nth-child(1){ animation-delay:.03s; }
+  .session-row:nth-child(2){ animation-delay:.07s; }
+  .session-row:nth-child(3){ animation-delay:.11s; }
+  .session-row:nth-child(4){ animation-delay:.15s; }
+  .session-row:nth-child(5){ animation-delay:.19s; }
+  .session-row:nth-child(6){ animation-delay:.23s; }
+  .stat-card{ animation:rowIn .5s var(--ease) backwards; }
+  .stat-card:nth-child(1){ animation-delay:.04s; }
+  .stat-card:nth-child(2){ animation-delay:.10s; }
+  .stat-card:nth-child(3){ animation-delay:.16s; }
+  .stat-card:nth-child(4){ animation-delay:.22s; }
+
+  /* ---- EMPTY STATES: a touch of life ------------------------------------ */
+  .empty-state{ text-align:center; opacity:.9; }
 </style>
 </head>
 <body>
