@@ -193,16 +193,17 @@
     padding:22px 0;
     background:var(--c-void);
     gap:6px;
+    overflow:hidden;
   }
   #railCanvas{
     position:absolute; inset:0; width:100%; height:100%;
     z-index:0; pointer-events:none; display:block;
   }
-  /* push all rail children above the canvas */
+  /* all rail children sit above the canvas */
   .rail > *:not(#railCanvas){ position:relative; z-index:1; }
-  /* a soft, fading divider instead of a hard full-height line */
+  /* subtle right edge separator */
   .rail::after{
-    content:""; position:absolute; top:0; right:0; width:1px; height:100%;
+    content:""; position:absolute; top:0; right:0; width:1px; height:100%; z-index:2;
     background:linear-gradient(to bottom, transparent 0%, var(--c-line) 14%,
       var(--c-line) 86%, transparent 100%);
     pointer-events:none;
@@ -676,8 +677,23 @@
   }
 
   /* rail: a slow, breathing vertical aurora wash (no hue-rotate hacks) */
-  /* canvas handles the rail background — no override needed */
-  body.theme-alive .rail{ background:transparent; }
+  body.theme-alive .rail{
+    background:transparent; position:relative; overflow:hidden;
+  }
+  body.theme-alive .rail::before{
+    content:""; position:absolute; inset:0; z-index:-1;
+    background:linear-gradient(180deg,
+      rgba(79,95,230,.20) 0%,
+      rgba(145,99,242,.14) 38%,
+      rgba(61,220,151,.12) 72%,
+      rgba(43,191,174,.14) 100%);
+    background-size:100% 220%;
+    animation:railBreathe 16s ease-in-out infinite alternate;
+  }
+  @keyframes railBreathe{
+    0%  { background-position:0% 0%;   opacity:.85; }
+    100%{ background-position:0% 100%; opacity:1; }
+  }
 
   /* panels: a faint, slow accent breath at the border (classy, not flashy) */
   body.theme-alive .panel,
@@ -1176,6 +1192,25 @@
         </div>
 
         <div class="panel">
+          <h2>Sidebar animation</h2>
+          <p class="muted">A living grid of squares that undulates like cloth. The glow color can be anything you like.</p>
+          <div class="mode-row">
+            <span class="mode-label">Animation</span>
+            <div class="mode-seg" id="railAnimSeg" role="group">
+              <button class="mode-opt" data-rail-opt="on">On</button>
+              <button class="mode-opt" data-rail-opt="off">Off</button>
+            </div>
+          </div>
+          <div class="mode-row" id="railColorRow" style="margin-top:10px;">
+            <span class="mode-label">Glow color</span>
+            <div style="display:flex;align-items:center;gap:10px;">
+              <input type="color" id="railGlowPicker" style="width:38px;height:38px;border:1px solid var(--c-line);border-radius:8px;background:none;cursor:pointer;padding:2px;" />
+              <button class="btn-secondary" id="railGlowReset" style="font-size:12px;padding:7px 12px;">Reset</button>
+            </div>
+          </div>
+        </div>
+
+        <div class="panel">
           <h2>Backup</h2>
           <p class="muted">Everything is stored in your account and synced automatically across every device you sign into. Export a backup now and then anyway — it's good insurance in case anything ever goes wrong.</p>
           <div class="btn-row">
@@ -1513,7 +1548,7 @@
   let currentUser = null;
   let realtimeChannel = null;
 
-  let state = { sessions: [], plans: [], settings: { theme: "indigo" } };
+  let state = { sessions: [], plans: [], settings: { theme: "indigo", railAnim: "on", railGlowColor: "#a78bfa" } };
 
   /* ---- row <-> app-state mapping --------------------------------------- */
   function rowToSession(r){
@@ -2796,171 +2831,6 @@
     draw();
   }
 
-  /* ======================================================================
-     RAIL CANVAS — LIVING SQUARE SKIN
-     =================================================================== */
-  let railRAF = null;
-
-  function startRailCanvas(){
-    const canvas = document.getElementById("railCanvas");
-    if(!canvas) return;
-    const ctx = canvas.getContext("2d");
-
-    const rail = document.getElementById("rail");
-
-    function resize(){
-      canvas.width  = rail ? rail.offsetWidth  : 76;
-      canvas.height = rail ? rail.offsetHeight : window.innerHeight;
-    }
-    resize();
-    const ro = new ResizeObserver(resize);
-    ro.observe(rail);
-
-    // ---- Grid constants ------------------------------------------------
-    const SLOT = 14;   // px per cell slot (cell + gap)
-    const GAP  = 1.2;  // gap between cells
-
-    // Scale range: tight so gap is never larger than the base layer
-    // At minimum scale (0.78), cell = 0.78*(SLOT-GAP) = ~10px, gap each side ~2px
-    // The base-layer fill covers the gap exactly
-    const SCALE_MIN = 0.78;
-    const SCALE_MAX = 1.00;
-
-    // ---- Wave system ---------------------------------------------------
-    const MAX_WAVES = 4;
-    const waves = [];
-
-    function spawnWave(){
-      const angle = Math.random() * Math.PI * 2;
-      waves.push({
-        ox:         canvas.width  * (0.1 + Math.random() * 0.8),
-        oy:         canvas.height * (0.0 + Math.random() * 1.0),
-        dx:         Math.cos(angle),
-        dy:         Math.sin(angle),
-        speed:      0.35 + Math.random() * 0.55,
-        wavelength: 70  + Math.random() * 130,
-        amplitude:  0.30 + Math.random() * 0.28,
-        phase:      0,
-        life:       0,
-        maxLife:    300 + Math.random() * 260
-      });
-    }
-    for(let i = 0; i < 3; i++) spawnWave();
-
-    // ---- Colour helpers ------------------------------------------------
-    // Creamy warm dark palette
-    // floor  = near-void, same as a fully-recessed cell
-    // crest  = warm cream highlight at wave peak
-    function lerpColor(t){
-      // t = 0 → dark warm: hsl(36,10%,8%)  → rgb(22,19,16)
-      // t = 1 → warm cream: hsl(38,16%,22%) → rgb(66,58,47)
-      const r = Math.round(22 + t * 44);
-      const g = Math.round(19 + t * 39);
-      const b = Math.round(16 + t * 31);
-      return [r, g, b];
-    }
-
-    // ---- Current accent for edge glow ----------------------------------
-    function getAccent(){
-      try{
-        const v = getComputedStyle(document.documentElement)
-          .getPropertyValue("--accent-idle").trim();
-        if(v && v[0]==="#" && v.length>=7){
-          return [parseInt(v.slice(1,3),16),
-                  parseInt(v.slice(3,5),16),
-                  parseInt(v.slice(5,7),16)];
-        }
-      }catch(e){}
-      return [79,95,230];
-    }
-
-    // ---- Main loop -----------------------------------------------------
-    function tick(){
-      railRAF = requestAnimationFrame(tick);
-
-      const W = canvas.width, H = canvas.height;
-      const cols = Math.ceil(W / SLOT) + 1;
-      const rows = Math.ceil(H / SLOT) + 1;
-
-      // Advance waves
-      for(let i = waves.length-1; i >= 0; i--){
-        waves[i].phase += waves[i].speed;
-        waves[i].life++;
-        if(waves[i].life > waves[i].maxLife) waves.splice(i,1);
-      }
-      while(waves.length < MAX_WAVES) spawnWave();
-
-      const accent = getAccent();
-
-      // ── Step 1: fill entire canvas with the "floor" (recessed cell colour)
-      const [fr,fg,fb] = lerpColor(0);
-      ctx.fillStyle = "rgb("+fr+","+fg+","+fb+")";
-      ctx.fillRect(0,0,W,H);
-
-      // ── Step 2: draw each cell at its scaled size centered in slot
-      for(let row = 0; row < rows; row++){
-        for(let col = 0; col < cols; col++){
-          const cx = col * SLOT + SLOT/2;
-          const cy = row * SLOT + SLOT/2;
-
-          // Sum wave contributions
-          let noise = 0;
-          waves.forEach(function(w){
-            const proj = (cx - w.ox)*w.dx + (cy - w.oy)*w.dy;
-            const lifeFrac = w.life / w.maxLife;
-            const env = Math.sin(lifeFrac * Math.PI);
-            noise += Math.sin((proj - w.phase * w.speed * 2) / w.wavelength * Math.PI*2)
-                     * w.amplitude * env;
-          });
-
-          // Normalise 0..1
-          const n = Math.max(0, Math.min(1, (noise + 1) / 2));
-
-          // Scale: SCALE_MIN at n=0, SCALE_MAX at n=1
-          const scale = SCALE_MIN + n * (SCALE_MAX - SCALE_MIN);
-          const cellSize = (SLOT - GAP) * scale;
-
-          const x = cx - cellSize/2;
-          const y = cy - cellSize/2;
-
-          // Fill colour — warm cream, brighter at crest
-          const [r,g,b] = lerpColor(n);
-          ctx.fillStyle = "rgb("+r+","+g+","+b+")";
-          ctx.fillRect(x, y, cellSize, cellSize);
-
-          // Neon edge glow — only on crests (top 45% of range)
-          const glowT = Math.max(0, (n - 0.55) / 0.45);
-          if(glowT > 0){
-            const glowAlpha = glowT * 0.75;
-            const blur      = glowT * 5;
-            ctx.save();
-            ctx.shadowColor  = "rgba("+accent[0]+","+accent[1]+","+accent[2]+","+glowAlpha+")";
-            ctx.shadowBlur   = blur;
-            ctx.strokeStyle  = "rgba("+accent[0]+","+accent[1]+","+accent[2]+","+(glowAlpha*0.55)+")";
-            ctx.lineWidth    = 0.8;
-            ctx.strokeRect(x, y, cellSize, cellSize);
-            ctx.restore();
-          }
-        }
-      }
-
-      // ── Step 3: soft right-edge fade into content area
-      const fade = ctx.createLinearGradient(W - 20, 0, W, 0);
-      fade.addColorStop(0, "rgba("+fr+","+fg+","+fb+",0)");
-      fade.addColorStop(1, "rgba(6,7,14,0.92)");
-      ctx.fillStyle = fade;
-      ctx.fillRect(0, 0, W, H);
-    }
-
-    tick();
-  }
-
-  function stopRailCanvas(){
-    if(railRAF){ cancelAnimationFrame(railRAF); railRAF = null; }
-    const canvas = document.getElementById("railCanvas");
-    if(canvas){ canvas.getContext("2d").clearRect(0,0,canvas.width,canvas.height); }
-  }
-
   function stopAliveCanvas(){
     if(aliveRAF){ cancelAnimationFrame(aliveRAF); aliveRAF = null; }
     const canvas = document.getElementById("aliveCanvas");
@@ -2979,7 +2849,6 @@
     } else if(key !== "indigo"){
       document.documentElement.setAttribute("data-theme", key);
     }
-    // Rail canvas always runs — it reads accent color live each frame
   }
 
   /* ---- light / dark mode: System / Light / Dark ------------------------ */
@@ -3066,7 +2935,54 @@
       });
       grid.appendChild(sw);
     });
+
+    // Rail animation toggle
+    const railAnim = state.settings.railAnim || "on";
+    document.querySelectorAll("#railAnimSeg .mode-opt").forEach(function(b){
+      b.classList.toggle("active", b.dataset.railOpt === railAnim);
+    });
+    document.querySelectorAll("#railAnimSeg .mode-opt").forEach(function(b){
+      b.onclick = function(){
+        state.settings.railAnim = b.dataset.railOpt;
+        saveLocalSettings();
+        if(b.dataset.railOpt === "on") startRailCanvas();
+        else stopRailCanvas();
+        renderSettings();
+      };
+    });
+
+    // Glow color picker
+    const picker = document.getElementById("railGlowPicker");
+    if(picker){
+      picker.value = state.settings.railGlowColor || "#a78bfa";
+      picker.oninput = function(){
+        state.settings.railGlowColor = picker.value;
+        saveLocalSettings();
+      };
+    }
+    const resetBtn = document.getElementById("railGlowReset");
+    if(resetBtn){
+      resetBtn.onclick = function(){
+        state.settings.railGlowColor = "#a78bfa";
+        saveLocalSettings();
+        if(picker) picker.value = "#a78bfa";
+      };
+    }
   }
+
+  function saveLocalSettings(){
+    try{ localStorage.setItem("studytrack.settings", JSON.stringify(state.settings)); }catch(e){}
+  }
+  function loadLocalSettings(){
+    try{
+      const raw = localStorage.getItem("studytrack.settings");
+      if(raw){
+        const parsed = JSON.parse(raw);
+        state.settings = Object.assign({ theme:"indigo", railAnim:"on", railGlowColor:"#a78bfa" }, parsed);
+      }
+    }catch(e){}
+  }
+
 
   document.getElementById("btnSignOut").addEventListener("click", async function(){
     await sb.auth.signOut();
@@ -3532,10 +3448,162 @@
     authScreenEl.classList.remove("open");
     shellEl.style.display = "flex";
     document.getElementById("manDate").value = todayStr();
+    loadLocalSettings();
     await loadAllData();
+    applyTheme(state.settings.theme || "indigo");
     renderAll();
     subscribeRealtime(currentUser.id);
-    startRailCanvas();
+    if((state.settings.railAnim || "on") === "on") startRailCanvas();
+  }
+
+  /* ======================================================================
+     RAIL CANVAS — LIVING SQUARE CLOTH
+     Reference: undulating grid, bright squares on dark gaps, cloth-like 3D wave
+     =================================================================== */
+  let railRAF = null;
+
+  function startRailCanvas(){
+    stopRailCanvas();
+    const canvas = document.getElementById("railCanvas");
+    if(!canvas) return;
+    const ctx = canvas.getContext("2d");
+    const rail = document.getElementById("rail");
+
+    function resize(){
+      canvas.width  = rail ? rail.offsetWidth  : 76;
+      canvas.height = rail ? rail.offsetHeight : window.innerHeight;
+    }
+    resize();
+    const ro = new ResizeObserver(function(){ resize(); });
+    ro.observe(rail);
+
+    // Grid: slot size defines the regular grid spacing
+    // The cell drawn inside each slot varies from SMALL to BIG
+    // Gap (dark background) is always visible — wider when cell is small
+    const SLOT     = 11;   // px per grid slot
+    const PAD_MIN  = 1.8;  // padding at minimum scale (large gap = recessed)
+    const PAD_MAX  = 0.5;  // padding at maximum scale (tiny gap = raised)
+
+    // ---- Wave system: multiple independent travelling waves ---------------
+    const MAX_WAVES = 5;
+    const waves = [];
+
+    function spawnWave(){
+      const angle = Math.random() * Math.PI * 2;
+      waves.push({
+        ox:    canvas.width  * (.1 + Math.random() * .8),
+        oy:    canvas.height * (-.1 + Math.random() * 1.2),
+        dx:    Math.cos(angle),
+        dy:    Math.sin(angle),
+        speed: .28 + Math.random() * .42,
+        wl:    55  + Math.random() * 110,
+        amp:   .32 + Math.random() * .32,
+        phase: 0,
+        life:  0,
+        maxL:  400 + Math.random() * 320
+      });
+    }
+    for(let i=0;i<3;i++) spawnWave();
+
+    function hexToRgb(hex){
+      const r = parseInt(hex.slice(1,3),16);
+      const g = parseInt(hex.slice(3,5),16);
+      const b = parseInt(hex.slice(5,7),16);
+      return [r,g,b];
+    }
+
+    function tick(){
+      railRAF = requestAnimationFrame(tick);
+
+      const W = canvas.width, H = canvas.height;
+      const cols = Math.ceil(W / SLOT) + 1;
+      const rows = Math.ceil(H / SLOT) + 1;
+
+      // Advance waves
+      for(let i=waves.length-1;i>=0;i--){
+        waves[i].phase += waves[i].speed;
+        waves[i].life++;
+        if(waves[i].life > waves[i].maxL) waves.splice(i,1);
+      }
+      while(waves.length < MAX_WAVES) spawnWave();
+
+      // Get glow color from settings
+      const glowHex = (state.settings && state.settings.railGlowColor) || "#a78bfa";
+      const [gr,gg,gb] = hexToRgb(glowHex);
+
+      // ── Background: the gap color — very dark, slightly tinted by glow
+      ctx.fillStyle = "rgba("+(Math.round(gr*.08)+4)+","+(Math.round(gg*.06)+3)+","+(Math.round(gb*.12)+8)+",1)";
+      ctx.fillRect(0,0,W,H);
+
+      for(let row=0; row<rows; row++){
+        for(let col=0; col<cols; col++){
+          const cx = col*SLOT + SLOT/2;
+          const cy = row*SLOT + SLOT/2;
+
+          // Sum wave contributions for this cell
+          let noise = 0;
+          waves.forEach(function(w){
+            const proj = (cx-w.ox)*w.dx + (cy-w.oy)*w.dy;
+            const env  = Math.sin(Math.min(1, w.life/w.maxL) * Math.PI);
+            noise += Math.sin((proj - w.phase*w.speed*2.2) / w.wl * Math.PI*2) * w.amp * env;
+          });
+
+          // Normalise 0..1
+          const n = Math.max(0, Math.min(1, (noise+1)/2));
+
+          // Padding: high n = raised = small padding = large cell
+          const pad    = PAD_MAX + (1-n) * (PAD_MIN - PAD_MAX);
+          const cSize  = SLOT - pad*2;
+          const x      = cx - cSize/2;
+          const y      = cy - cSize/2;
+
+          // Cell brightness: raised cells are bright white, recessed are dim
+          // Mimicking the reference: very bright at peak, dark lavender at trough
+          const brightness = Math.round(40 + n * 215);  // 40 → 255
+          const rr = Math.min(255, brightness + Math.round(gr*.08));
+          const rg = Math.min(255, Math.round(brightness * .94) + Math.round(gg*.06));
+          const rb = Math.min(255, brightness + Math.round(gb*.22));
+          const alpha = 0.45 + n * 0.55;
+
+          ctx.fillStyle = "rgba("+rr+","+rg+","+rb+","+alpha+")";
+          ctx.fillRect(x, y, cSize, cSize);
+
+          // Edge glow — on raised cells only (top 50% of range)
+          const glowT = Math.max(0, (n - 0.5) / 0.5);
+          if(glowT > 0.05){
+            ctx.save();
+            ctx.shadowColor = "rgba("+gr+","+gg+","+gb+","+(glowT*0.85)+")";
+            ctx.shadowBlur  = glowT * 7;
+            ctx.strokeStyle = "rgba("+gr+","+gg+","+gb+","+(glowT*0.5)+")";
+            ctx.lineWidth   = 0.6;
+            ctx.strokeRect(x+.3, y+.3, cSize-.6, cSize-.6);
+            ctx.restore();
+          }
+        }
+      }
+
+      // Soft right-edge fade into content area
+      const fade = ctx.createLinearGradient(W-16,0,W,0);
+      const bg = ctx.createLinearGradient(W-16,0,W,0);
+      fade.addColorStop(0,"rgba(4,5,12,0)");
+      fade.addColorStop(1,"rgba(4,5,12,0.88)");
+      ctx.fillStyle = fade;
+      ctx.fillRect(0,0,W,H);
+    }
+
+    tick();
+  }
+
+  function stopRailCanvas(){
+    if(railRAF){ cancelAnimationFrame(railRAF); railRAF = null; }
+    const canvas = document.getElementById("railCanvas");
+    if(canvas){
+      const ctx = canvas.getContext("2d");
+      ctx.clearRect(0,0,canvas.width,canvas.height);
+      // restore plain dark background
+      ctx.fillStyle = "#06070e";
+      ctx.fillRect(0,0,canvas.width,canvas.height);
+    }
   }
 
 })();
