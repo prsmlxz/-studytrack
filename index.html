@@ -188,20 +188,23 @@
   .auth-footer .link-btn{ font-size:13px; }
 
   .rail{
-    width:76px; flex:none; position:relative;
+    width:76px; flex:none; position:relative; overflow:hidden;
     display:flex; flex-direction:column; align-items:center;
     padding:22px 0;
-    background:var(--c-void);
+    background:#06070e;
     gap:6px;
-    overflow:hidden;
   }
   #railCanvas{
     position:absolute; inset:0; width:100%; height:100%;
     z-index:0; pointer-events:none; display:block;
   }
-  /* all rail children sit above the canvas */
+  /* keep every rail child above the canvas */
   .rail > *:not(#railCanvas){ position:relative; z-index:1; }
-  /* subtle right edge separator */
+  /* buttons get a subtle dark backdrop so they stay legible on any animation */
+  .rail-btn{ background:rgba(6,7,14,.55); }
+  .rail-btn:hover{ background:rgba(20,22,42,.75); }
+  .rail-btn.active{ background:var(--accent-idle-soft); }
+  /* a soft, fading divider */
   .rail::after{
     content:""; position:absolute; top:0; right:0; width:1px; height:100%; z-index:2;
     background:linear-gradient(to bottom, transparent 0%, var(--c-line) 14%,
@@ -1193,7 +1196,7 @@
 
         <div class="panel">
           <h2>Sidebar animation</h2>
-          <p class="muted">A living grid of squares that undulates like cloth. The glow color can be anything you like.</p>
+          <p class="muted">A 3D mesh of tiles that deforms like cloth. Turn it off if you need to conserve battery.</p>
           <div class="mode-row">
             <span class="mode-label">Animation</span>
             <div class="mode-seg" id="railAnimSeg" role="group">
@@ -1201,10 +1204,11 @@
               <button class="mode-opt" data-rail-opt="off">Off</button>
             </div>
           </div>
-          <div class="mode-row" id="railColorRow" style="margin-top:10px;">
+          <div class="mode-row" style="margin-top:12px;">
             <span class="mode-label">Glow color</span>
             <div style="display:flex;align-items:center;gap:10px;">
-              <input type="color" id="railGlowPicker" style="width:38px;height:38px;border:1px solid var(--c-line);border-radius:8px;background:none;cursor:pointer;padding:2px;" />
+              <input type="color" id="railGlowPicker" value="#a78bfa"
+                style="width:36px;height:36px;border:1px solid var(--c-line);border-radius:8px;background:none;cursor:pointer;padding:2px;" />
               <button class="btn-secondary" id="railGlowReset" style="font-size:12px;padding:7px 12px;">Reset</button>
             </div>
           </div>
@@ -1548,7 +1552,7 @@
   let currentUser = null;
   let realtimeChannel = null;
 
-  let state = { sessions: [], plans: [], settings: { theme: "indigo", railAnim: "on", railGlowColor: "#a78bfa" } };
+  let state = { sessions: [], plans: [], settings: { theme: "indigo" } };
 
   /* ---- row <-> app-state mapping --------------------------------------- */
   function rowToSession(r){
@@ -2936,53 +2940,57 @@
       grid.appendChild(sw);
     });
 
-    // Rail animation toggle
+    // ---- Sidebar animation toggle ----
     const railAnim = state.settings.railAnim || "on";
     document.querySelectorAll("#railAnimSeg .mode-opt").forEach(function(b){
       b.classList.toggle("active", b.dataset.railOpt === railAnim);
-    });
-    document.querySelectorAll("#railAnimSeg .mode-opt").forEach(function(b){
       b.onclick = function(){
         state.settings.railAnim = b.dataset.railOpt;
-        saveLocalSettings();
+        saveRailSettings();
         if(b.dataset.railOpt === "on") startRailCanvas();
         else stopRailCanvas();
         renderSettings();
       };
     });
 
-    // Glow color picker
+    // ---- Glow color picker ----
     const picker = document.getElementById("railGlowPicker");
     if(picker){
       picker.value = state.settings.railGlowColor || "#a78bfa";
       picker.oninput = function(){
         state.settings.railGlowColor = picker.value;
-        saveLocalSettings();
+        saveRailSettings();
       };
     }
     const resetBtn = document.getElementById("railGlowReset");
     if(resetBtn){
       resetBtn.onclick = function(){
-        state.settings.railGlowColor = "#a78bfa";
-        saveLocalSettings();
-        if(picker) picker.value = "#a78bfa";
+        const def = "#a78bfa";
+        state.settings.railGlowColor = def;
+        if(picker) picker.value = def;
+        saveRailSettings();
       };
     }
   }
 
-  function saveLocalSettings(){
-    try{ localStorage.setItem("studytrack.settings", JSON.stringify(state.settings)); }catch(e){}
-  }
-  function loadLocalSettings(){
+  function saveRailSettings(){
     try{
-      const raw = localStorage.getItem("studytrack.settings");
+      localStorage.setItem("st.railSettings", JSON.stringify({
+        railAnim: state.settings.railAnim || "on",
+        railGlowColor: state.settings.railGlowColor || "#a78bfa"
+      }));
+    }catch(e){}
+  }
+  function loadRailSettings(){
+    try{
+      const raw = localStorage.getItem("st.railSettings");
       if(raw){
-        const parsed = JSON.parse(raw);
-        state.settings = Object.assign({ theme:"indigo", railAnim:"on", railGlowColor:"#a78bfa" }, parsed);
+        const p = JSON.parse(raw);
+        state.settings.railAnim      = p.railAnim      || "on";
+        state.settings.railGlowColor = p.railGlowColor || "#a78bfa";
       }
     }catch(e){}
   }
-
 
   document.getElementById("btnSignOut").addEventListener("click", async function(){
     await sb.auth.signOut();
@@ -3448,17 +3456,18 @@
     authScreenEl.classList.remove("open");
     shellEl.style.display = "flex";
     document.getElementById("manDate").value = todayStr();
-    loadLocalSettings();
+    loadRailSettings();
     await loadAllData();
-    applyTheme(state.settings.theme || "indigo");
     renderAll();
     subscribeRealtime(currentUser.id);
     if((state.settings.railAnim || "on") === "on") startRailCanvas();
   }
 
   /* ======================================================================
-     RAIL CANVAS — LIVING SQUARE CLOTH
-     Reference: undulating grid, bright squares on dark gaps, cloth-like 3D wave
+     RAIL CANVAS — TRUE 3D DEFORMING MESH
+     Geometry-only animation: vertices displaced in 3D, projected to 2D.
+     Adjacent tiles share projected vertices → mathematically perfect tiling.
+     No blur, no opacity animation, no gradients — pure vertex deformation.
      =================================================================== */
   let railRAF = null;
 
@@ -3466,127 +3475,154 @@
     stopRailCanvas();
     const canvas = document.getElementById("railCanvas");
     if(!canvas) return;
-    const ctx = canvas.getContext("2d");
-    const rail = document.getElementById("rail");
+    const rail   = document.getElementById("rail");
+    const ctx    = canvas.getContext("2d");
 
     function resize(){
       canvas.width  = rail ? rail.offsetWidth  : 76;
       canvas.height = rail ? rail.offsetHeight : window.innerHeight;
     }
     resize();
-    const ro = new ResizeObserver(function(){ resize(); });
+    const ro = new ResizeObserver(resize);
     ro.observe(rail);
 
-    // Grid: slot size defines the regular grid spacing
-    // The cell drawn inside each slot varies from SMALL to BIG
-    // Gap (dark background) is always visible — wider when cell is small
-    const SLOT     = 11;   // px per grid slot
-    const PAD_MIN  = 1.8;  // padding at minimum scale (large gap = recessed)
-    const PAD_MAX  = 0.5;  // padding at maximum scale (tiny gap = raised)
+    const SLOT  = 11;   // base grid spacing (px in 3D space)
+    const CAM_Z = 240;  // camera distance — lower = more dramatic perspective
+    const GAP   = 0.9;  // inset in px to create visible gap between tiles
 
-    // ---- Wave system: multiple independent travelling waves ---------------
-    const MAX_WAVES = 5;
-    const waves = [];
+    // ---- Wave emitters ------------------------------------------------
+    // Linear waves: amplitude * sin(dot(pos, dir) * freq + time * speed)
+    // Circular waves: amplitude * sin(dist * freq - time * speed)
+    const LINEAR = [
+      { dx: 0.85, dy: 0.42, freq: 0.092, amp: 20, spd: 0.72 },
+      { dx:-0.50, dy: 0.87, freq: 0.065, amp: 15, spd: 0.95 },
+      { dx: 0.20, dy:-0.98, freq: 0.052, amp: 18, spd: 0.55 },
+      { dx: 0.95, dy:-0.31, freq: 0.038, amp: 22, spd: 0.40 },
+    ];
+    // Circular emitters have drifting centers for non-repetition
+    const CIRCLE = [
+      { x:30, y:150, vx: 0.08, vy: 0.14, freq:0.10, amp:14, spd:1.05 },
+      { x:50, y:600, vx:-0.11, vy:-0.09, freq:0.07, amp:12, spd:0.85 },
+    ];
 
-    function spawnWave(){
-      const angle = Math.random() * Math.PI * 2;
-      waves.push({
-        ox:    canvas.width  * (.1 + Math.random() * .8),
-        oy:    canvas.height * (-.1 + Math.random() * 1.2),
-        dx:    Math.cos(angle),
-        dy:    Math.sin(angle),
-        speed: .28 + Math.random() * .42,
-        wl:    55  + Math.random() * 110,
-        amp:   .32 + Math.random() * .32,
-        phase: 0,
-        life:  0,
-        maxL:  400 + Math.random() * 320
+    function getHeight(gx, gy, t){
+      let h = 0;
+      LINEAR.forEach(function(w){
+        h += w.amp * Math.sin((gx*w.dx + gy*w.dy) * w.freq + t * w.spd);
       });
+      CIRCLE.forEach(function(c){
+        const d = Math.sqrt((gx-c.x)*(gx-c.x) + (gy-c.y)*(gy-c.y));
+        h += c.amp * Math.sin(d * c.freq - t * c.spd) * Math.exp(-d * 0.0035);
+      });
+      return h;
     }
-    for(let i=0;i<3;i++) spawnWave();
+
+    // Perspective projection — camera centered on the sidebar
+    function project(gx, gy, z, CX, CY){
+      const s = CAM_Z / (CAM_Z - z);
+      return { x:(gx-CX)*s+CX, y:(gy-CY)*s+CY };
+    }
 
     function hexToRgb(hex){
-      const r = parseInt(hex.slice(1,3),16);
-      const g = parseInt(hex.slice(3,5),16);
-      const b = parseInt(hex.slice(5,7),16);
-      return [r,g,b];
+      return [ parseInt(hex.slice(1,3),16),
+               parseInt(hex.slice(3,5),16),
+               parseInt(hex.slice(5,7),16) ];
     }
+
+    const MAX_H = 91; // ~sum of amplitudes — for normalization
+    let t = 0;
 
     function tick(){
       railRAF = requestAnimationFrame(tick);
+      t += 0.016;
+
+      // Drift circular emitter centers
+      CIRCLE.forEach(function(c){
+        c.x += c.vx; c.y += c.vy;
+        if(c.x < -20 || c.x > 150) c.vx *= -1;
+        if(c.y < -80 || c.y > canvas.height+80) c.vy *= -1;
+      });
 
       const W = canvas.width, H = canvas.height;
-      const cols = Math.ceil(W / SLOT) + 1;
-      const rows = Math.ceil(H / SLOT) + 1;
+      const CX = W/2, CY = H/2;
+      const cols = Math.ceil(W / SLOT) + 2;
+      const rows = Math.ceil(H / SLOT) + 2;
 
-      // Advance waves
-      for(let i=waves.length-1;i>=0;i--){
-        waves[i].phase += waves[i].speed;
-        waves[i].life++;
-        if(waves[i].life > waves[i].maxL) waves.splice(i,1);
+      // ── Dark base (gap color) ──────────────────────────────────────
+      ctx.fillStyle = "#06040e";
+      ctx.fillRect(0, 0, W, H);
+
+      // ── Pre-compute projected vertices ─────────────────────────────
+      // V[r][c] shares between tile (r,c), (r,c-1), (r-1,c), (r-1,c-1)
+      // → zero gaps guaranteed
+      const V = [];
+      for(let r = 0; r <= rows; r++){
+        V[r] = [];
+        for(let c = 0; c <= cols; c++){
+          const gx = (c-1) * SLOT;
+          const gy = (r-1) * SLOT;
+          const z  = getHeight(gx, gy, t);
+          const p  = project(gx, gy, z, CX, CY);
+          V[r][c] = { x:p.x, y:p.y, z:z };
+        }
       }
-      while(waves.length < MAX_WAVES) spawnWave();
 
-      // Get glow color from settings
+      // ── Get current glow color ──────────────────────────────────────
       const glowHex = (state.settings && state.settings.railGlowColor) || "#a78bfa";
       const [gr,gg,gb] = hexToRgb(glowHex);
 
-      // ── Background: the gap color — very dark, slightly tinted by glow
-      ctx.fillStyle = "rgba("+(Math.round(gr*.08)+4)+","+(Math.round(gg*.06)+3)+","+(Math.round(gb*.12)+8)+",1)";
-      ctx.fillRect(0,0,W,H);
+      // ── Draw each tile ──────────────────────────────────────────────
+      for(let r=0; r<rows; r++){
+        for(let c=0; c<cols; c++){
+          const tl = V[r][c], tr = V[r][c+1];
+          const br = V[r+1][c+1], bl = V[r+1][c];
 
-      for(let row=0; row<rows; row++){
-        for(let col=0; col<cols; col++){
-          const cx = col*SLOT + SLOT/2;
-          const cy = row*SLOT + SLOT/2;
+          const avgZ = (tl.z+tr.z+br.z+bl.z)*0.25;
+          // n: 0 = deepest valley, 1 = highest peak
+          const n = Math.max(0, Math.min(1, (avgZ + MAX_H) / (MAX_H * 2)));
 
-          // Sum wave contributions for this cell
-          let noise = 0;
-          waves.forEach(function(w){
-            const proj = (cx-w.ox)*w.dx + (cy-w.oy)*w.dy;
-            const env  = Math.sin(Math.min(1, w.life/w.maxL) * Math.PI);
-            noise += Math.sin((proj - w.phase*w.speed*2.2) / w.wl * Math.PI*2) * w.amp * env;
-          });
+          // Inset each vertex toward quad center to create the visible gap
+          const qcx = (tl.x+tr.x+br.x+bl.x)*0.25;
+          const qcy = (tl.y+tr.y+br.y+bl.y)*0.25;
+          function ins(v){
+            const dx=v.x-qcx, dy=v.y-qcy;
+            const len=Math.sqrt(dx*dx+dy*dy)||1;
+            return { x:v.x-(dx/len)*GAP, y:v.y-(dy/len)*GAP };
+          }
+          const a=ins(tl), b=ins(tr), d=ins(br), e=ins(bl);
 
-          // Normalise 0..1
-          const n = Math.max(0, Math.min(1, (noise+1)/2));
+          // Tile color: dark purple valley → pure white peak
+          // Matches reference: white/cream raised, dark recessed
+          const bri = Math.round(18 + n*237);
+          const rc  = Math.min(255, bri + Math.round(n*12));
+          const gc  = Math.min(255, Math.round(bri*0.88 + n*8));
+          const bc  = Math.min(255, bri + Math.round(n*28));
 
-          // Padding: high n = raised = small padding = large cell
-          const pad    = PAD_MAX + (1-n) * (PAD_MIN - PAD_MAX);
-          const cSize  = SLOT - pad*2;
-          const x      = cx - cSize/2;
-          const y      = cy - cSize/2;
+          ctx.beginPath();
+          ctx.moveTo(a.x,a.y); ctx.lineTo(b.x,b.y);
+          ctx.lineTo(d.x,d.y); ctx.lineTo(e.x,e.y);
+          ctx.closePath();
+          ctx.fillStyle = "rgb("+rc+","+gc+","+bc+")";
+          ctx.fill();
 
-          // Cell brightness: raised cells are bright white, recessed are dim
-          // Mimicking the reference: very bright at peak, dark lavender at trough
-          const brightness = Math.round(40 + n * 215);  // 40 → 255
-          const rr = Math.min(255, brightness + Math.round(gr*.08));
-          const rg = Math.min(255, Math.round(brightness * .94) + Math.round(gg*.06));
-          const rb = Math.min(255, brightness + Math.round(gb*.22));
-          const alpha = 0.45 + n * 0.55;
-
-          ctx.fillStyle = "rgba("+rr+","+rg+","+rb+","+alpha+")";
-          ctx.fillRect(x, y, cSize, cSize);
-
-          // Edge glow — on raised cells only (top 50% of range)
-          const glowT = Math.max(0, (n - 0.5) / 0.5);
-          if(glowT > 0.05){
+          // Neon glow on raised tiles (top 35% of range)
+          const gT = Math.max(0, (n-0.65)/0.35);
+          if(gT > 0.04){
             ctx.save();
-            ctx.shadowColor = "rgba("+gr+","+gg+","+gb+","+(glowT*0.85)+")";
-            ctx.shadowBlur  = glowT * 7;
-            ctx.strokeStyle = "rgba("+gr+","+gg+","+gb+","+(glowT*0.5)+")";
-            ctx.lineWidth   = 0.6;
-            ctx.strokeRect(x+.3, y+.3, cSize-.6, cSize-.6);
+            ctx.shadowColor = "rgba("+gr+","+gg+","+gb+","+(gT*0.80)+")";
+            ctx.shadowBlur  = gT * 9;
+            ctx.strokeStyle = "rgba("+gr+","+gg+","+gb+","+(gT*0.55)+")";
+            ctx.lineWidth   = 0.7;
+            ctx.stroke();
             ctx.restore();
           }
         }
       }
 
-      // Soft right-edge fade into content area
-      const fade = ctx.createLinearGradient(W-16,0,W,0);
-      const bg = ctx.createLinearGradient(W-16,0,W,0);
-      fade.addColorStop(0,"rgba(4,5,12,0)");
-      fade.addColorStop(1,"rgba(4,5,12,0.88)");
+      // Soft right-edge fade
+      const fade = ctx.createLinearGradient(W-14,0,W,0);
+      fade.addColorStop(0,"rgba(6,4,14,0)");
+      fade.addColorStop(1,"rgba(6,4,14,0.90)");
       ctx.fillStyle = fade;
       ctx.fillRect(0,0,W,H);
     }
@@ -3599,8 +3635,6 @@
     const canvas = document.getElementById("railCanvas");
     if(canvas){
       const ctx = canvas.getContext("2d");
-      ctx.clearRect(0,0,canvas.width,canvas.height);
-      // restore plain dark background
       ctx.fillStyle = "#06070e";
       ctx.fillRect(0,0,canvas.width,canvas.height);
     }
