@@ -198,6 +198,13 @@
     position:absolute; inset:0; width:100%; height:100%;
     z-index:0; pointer-events:none; display:block;
   }
+  /* When sidebar animation is off: transparent rail so the app background
+     is visible through it — much better than a solid pale fill. */
+  .rail.rail-anim-off{
+    background: transparent !important;
+  }
+  .rail.rail-anim-off::before{ opacity:0 !important; animation:none !important; }
+  .rail.rail-anim-off #railCanvas{ opacity:0; }
   /* keep every rail child above the canvas */
   .rail > *:not(#railCanvas){ position:relative; z-index:1; }
   /* a soft, fading divider */
@@ -1148,6 +1155,7 @@
           <div class="stat-card"><span class="stat-label">This week</span><span class="stat-value" id="statWeek">0m</span></div>
           <div class="stat-card"><span class="stat-label">All time</span><span class="stat-value" id="statTotal">0h</span></div>
           <div class="stat-card"><span class="stat-label">Streak</span><span class="stat-value" id="statStreak">0d</span></div>
+          <div class="stat-card"><span class="stat-label">Avg / day (week)</span><span class="stat-value" id="statAvg">0m</span></div>
         </div>
 
         <div class="panel">
@@ -1157,7 +1165,7 @@
 
         <div class="panel split">
           <div class="chart-col">
-            <h2>By subject</h2>
+            <h2>Today by subject</h2>
             <svg id="subjectDonut" class="chart donut" viewBox="0 0 220 220" width="220" height="220"></svg>
           </div>
           <div class="legend-col" id="subjectLegend"></div>
@@ -1961,6 +1969,13 @@
     const cs = Math.floor((elapsed%1000)/10);
     tmHMS.textContent = h>0 ? (pad(h)+":"+pad(m)+":"+pad(s)) : (pad(m)+":"+pad(s));
     tmCenti.textContent = "." + pad(cs);
+    // Update today total live while timer is running
+    const today = todayStr();
+    const savedSec = state.sessions.filter(function(s){ return s.date === today; })
+      .reduce(function(sum, s){ return sum + s.durationSec; }, 0);
+    const liveSec = Math.round((Date.now() - timerStartMs) / 1000);
+    const combinedSec = savedSec + liveSec;
+    document.getElementById("timerToday").textContent = "Today: " + minutesToLabel(combinedSec / 60);
   }
   function resetDisplay(){
     tmHMS.textContent = "00:00";
@@ -2578,9 +2593,11 @@
     return days;
   }
   function computeSubjectData(){
+    const today = todayStr();
+    const todaySessions = state.sessions.filter(function(s){ return s.date === today; });
     const totals = {};
     const colors = {};
-    state.sessions.forEach(function(s){
+    todaySessions.forEach(function(s){
       const key = sessionSubjectKey(s);   // tag name when tagged, else notes
       totals[key] = (totals[key]||0) + s.durationSec;
       if(!colors[key]) colors[key] = sessionDotColor(s);
@@ -2649,7 +2666,7 @@
         '<text class="donut-center-label" x="'+cx+'" y="'+(cy+18)+'">tracked</text>';
       const li = document.createElement("p");
       li.className = "muted";
-      li.textContent = "Log a session to see your subject breakdown.";
+      li.textContent = "Log a session today to see your subject breakdown.";
       legend.appendChild(li);
       return;
     }
@@ -2693,10 +2710,16 @@
     const weekSec = state.sessions.filter(function(s){ return s.date >= weekStart && s.date <= today; }).reduce(function(sum,s){ return sum+s.durationSec; },0);
     const allSec = state.sessions.reduce(function(sum,s){ return sum+s.durationSec; },0);
 
+    // Average per day over the past 7 days (only count days that had any study)
+    const weekData = computeWeekData();
+    const activeDays = weekData.filter(function(d){ return d.minutes > 0; }).length;
+    const avgMin = activeDays > 0 ? (weekSec / 60 / activeDays) : 0;
+
     document.getElementById("statToday").textContent = minutesToLabel(todaySec/60);
     document.getElementById("statWeek").textContent = minutesToLabel(weekSec/60);
     document.getElementById("statTotal").textContent = minutesToLabel(allSec/60);
     document.getElementById("statStreak").textContent = computeStreak() + "d";
+    document.getElementById("statAvg").textContent = activeDays > 0 ? minutesToLabel(avgMin) : "—";
 
     drawWeekChart();
     drawSubjectDonut();
@@ -3465,6 +3488,7 @@
     renderAll();
     subscribeRealtime(currentUser.id);
     if((state.settings.railAnim || "on") === "on") startRailCanvas();
+    else { var rail=document.getElementById("rail"); if(rail) rail.classList.add("rail-anim-off"); }
   }
 
   /* ======================================================================
@@ -3487,6 +3511,7 @@
     var canvas = document.getElementById("railCanvas");
     if(!canvas) return;
     var rail = document.getElementById("rail");
+    if(rail) rail.classList.remove("rail-anim-off");
     var ctx  = canvas.getContext("2d", { alpha: false });
 
     var pendingResize = false;
@@ -3669,9 +3694,11 @@
     var canvas=document.getElementById("railCanvas");
     if(canvas){
       var ctx=canvas.getContext("2d");
-      ctx.fillStyle="#06070e";
-      ctx.fillRect(0,0,canvas.width,canvas.height);
+      ctx.clearRect(0,0,canvas.width,canvas.height);
     }
+    // Make the rail transparent so the app background shows through
+    var rail=document.getElementById("rail");
+    if(rail) rail.classList.add("rail-anim-off");
   }
 
 
