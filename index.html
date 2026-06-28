@@ -3,12 +3,6 @@
 <head>
 <meta charset="UTF-8" />
 <meta name="viewport" content="width=device-width, initial-scale=1" />
-<meta name="theme-color" content="#05060d" />
-<meta name="mobile-web-app-capable" content="yes" />
-<meta name="apple-mobile-web-app-capable" content="yes" />
-<meta name="apple-mobile-web-app-status-bar-style" content="black-translucent" />
-<meta name="apple-mobile-web-app-title" content="StudyTrack" />
-<link rel="manifest" href="/manifest.json" />
 <script>(function(){try{var m=localStorage.getItem('studytrack.mode');if(m==='light'||m==='dark'){document.documentElement.setAttribute('data-mode',m);}}catch(e){}})();</script>
 <title>StudyTrack</title>
 <link rel="icon" type="image/svg+xml" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 64 64'%3E%3Cdefs%3E%3ClinearGradient id='g' x1='0' y1='0' x2='1' y2='1'%3E%3Cstop offset='0' stop-color='%234f5fe6'/%3E%3Cstop offset='1' stop-color='%23ffb454'/%3E%3C/linearGradient%3E%3C/defs%3E%3Crect width='64' height='64' rx='14' fill='%2305060d'/%3E%3Crect width='64' height='64' rx='14' fill='url(%23g)' opacity='.15'/%3E%3Ctext x='32' y='43' font-family='system-ui,sans-serif' font-weight='700' font-size='26' fill='url(%23g)' text-anchor='middle' letter-spacing='-1'%3EST%3C/text%3E%3C/svg%3E" />
@@ -1961,44 +1955,14 @@
      =================================================================== */
   let timerRunning = false;
   let timerStartMs = 0;
-  // timerInterval kept for fallback only — primary tick comes from Web Worker
   let timerInterval = null;
-  let timerWorker = null;
 
   const tmHMS = document.getElementById("tmHMS");
   const tmCenti = document.getElementById("tmCenti");
   const btnStartStop = document.getElementById("btnStartStop");
   const btnStartStopLabel = document.getElementById("btnStartStopLabel");
 
-  /* ── Web Worker ticker ────────────────────────────────────────────────
-     The worker runs on a separate thread and is NOT frozen when Chrome
-     tabs go to background or the screen turns off. It posts a "tick"
-     message every 50 ms. The main thread only updates the DOM on receipt.
-     If the browser doesn't support workers we fall back to setInterval.
-     ──────────────────────────────────────────────────────────────────── */
-  function makeTimerWorker(){
-    // Inline the worker as a Blob so no extra file is needed here —
-    // but we also ship sw.js for the PWA, so we try that path first.
-    const code = [
-      "var iv=null;",
-      "self.onmessage=function(e){",
-      "  if(e.data==='start'){",
-      "    if(iv) clearInterval(iv);",
-      "    iv=setInterval(function(){ self.postMessage('tick'); },50);",
-      "  } else if(e.data==='stop'){",
-      "    clearInterval(iv); iv=null;",
-      "  }",
-      "};"
-    ].join("
-");
-    try{
-      var blob = new Blob([code], {type:"application/javascript"});
-      return new Worker(URL.createObjectURL(blob));
-    }catch(e){ return null; }
-  }
-
   function tickDisplay(){
-    if(!timerRunning) return;
     const elapsed = Date.now() - timerStartMs;
     const totalSec = elapsed/1000;
     const h = Math.floor(totalSec/3600), m = Math.floor((totalSec%3600)/60), s = Math.floor(totalSec%60);
@@ -2007,16 +1971,11 @@
     tmCenti.textContent = "." + pad(cs);
     // Update today total live while timer is running
     const today = todayStr();
-    const savedSec = state.sessions.filter(function(sx){ return sx.date === today; })
-      .reduce(function(sum, sx){ return sum + sx.durationSec; }, 0);
-    const liveSec = Math.round(elapsed / 1000);
+    const savedSec = state.sessions.filter(function(s){ return s.date === today; })
+      .reduce(function(sum, s){ return sum + s.durationSec; }, 0);
+    const liveSec = Math.round((Date.now() - timerStartMs) / 1000);
     const combinedSec = savedSec + liveSec;
-    // Show seconds for the first minute so the counter moves immediately
-    var todayLabel;
-    if(combinedSec <= 0){ todayLabel = "No sessions yet today"; }
-    else if(combinedSec < 60){ todayLabel = "Today: " + combinedSec + "s"; }
-    else { todayLabel = "Today: " + minutesToLabel(combinedSec / 60); }
-    document.getElementById("timerToday").textContent = todayLabel;
+    document.getElementById("timerToday").textContent = "Today: " + minutesToLabel(combinedSec / 60);
   }
   function resetDisplay(){
     tmHMS.textContent = "00:00";
@@ -2029,20 +1988,11 @@
     timerStartMs = Date.now();
     document.body.classList.add("running");
     btnStartStopLabel.textContent = "Stop";
-    // Try Web Worker first (survives tab backgrounding)
-    timerWorker = makeTimerWorker();
-    if(timerWorker){
-      timerWorker.onmessage = function(){ tickDisplay(); };
-      timerWorker.postMessage("start");
-    } else {
-      // Fallback: plain setInterval
-      timerInterval = setInterval(tickDisplay, 50);
-    }
+    timerInterval = setInterval(tickDisplay, 50);
     tickDisplay();
   }
   function stopTimer(){
     playTone("stop");
-    if(timerWorker){ timerWorker.postMessage("stop"); timerWorker.terminate(); timerWorker=null; }
     clearInterval(timerInterval);
     const elapsedSec = Math.round((Date.now() - timerStartMs)/1000);
     timerRunning = false;
@@ -3751,17 +3701,6 @@
     if(rail) rail.classList.add("rail-anim-off");
   }
 
-
-  /* ── Register Service Worker for PWA / offline support ── */
-  if("serviceWorker" in navigator){
-    window.addEventListener("load", function(){
-      navigator.serviceWorker.register("/sw.js").then(function(reg){
-        console.log("SW registered:", reg.scope);
-      }).catch(function(err){
-        console.log("SW registration failed:", err);
-      });
-    });
-  }
 
 })();
 </script>
