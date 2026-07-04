@@ -6,6 +6,9 @@
 <script>(function(){try{var m=localStorage.getItem('studytrack.mode');if(m==='light'||m==='dark'){document.documentElement.setAttribute('data-mode',m);}}catch(e){}})();</script>
 <title>StudyTrack</title>
 <link rel="icon" type="image/svg+xml" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 64 64'%3E%3Cdefs%3E%3ClinearGradient id='g' x1='0' y1='0' x2='1' y2='1'%3E%3Cstop offset='0' stop-color='%234f5fe6'/%3E%3Cstop offset='1' stop-color='%23ffb454'/%3E%3C/linearGradient%3E%3C/defs%3E%3Crect width='64' height='64' rx='14' fill='%2305060d'/%3E%3Crect width='64' height='64' rx='14' fill='url(%23g)' opacity='.15'/%3E%3Ctext x='32' y='43' font-family='system-ui,sans-serif' font-weight='700' font-size='26' fill='url(%23g)' text-anchor='middle' letter-spacing='-1'%3EST%3C/text%3E%3C/svg%3E" />
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&family=Space+Grotesk:wght@500;600;700&display=swap" rel="stylesheet">
 <style>
   /* ========================================================================
      TOKENS
@@ -281,7 +284,11 @@
     transition:transform .15s var(--ease), background .2s var(--ease), border-color .2s var(--ease);
   }
   .icon-btn svg{ width:18px; height:18px; }
-  .icon-btn:hover{ background:#171933; border-color:var(--accent-idle); }
+  /* theme-aware hover fill — the old hardcoded dark hex here broke badly in
+     Light mode (a near-black fill behind near-black text), and mobile
+     browsers "stick" hover state after a tap, so it wasn't just a desktop
+     mouse-only edge case. color-mix keeps it correct in every mode. */
+  .icon-btn:hover{ background:color-mix(in srgb, var(--c-ink-2) 60%, var(--c-mist) 12%); border-color:var(--accent-idle); }
   .icon-btn:active{ transform:scale(.88); }
   .icon-btn.small{ width:32px; height:32px; }
   .icon-btn.small svg{ width:14px; height:14px; }
@@ -359,7 +366,11 @@
     padding:10px 18px; border-radius:var(--r-sm); font-size:13.5px; font-weight:500;
     transition:border-color .2s var(--ease), background .2s var(--ease);
   }
-  .btn-secondary:hover{ border-color:var(--accent-idle); background:#141631; }
+  /* theme-aware hover fill — same fix as .icon-btn above: the previous
+     hardcoded dark hex made this button unreadable (dark text on a dark
+     fill) in Light mode, and mobile taps can leave :hover "stuck" after
+     release, so this was visible on phones, not just desktop mouse-hover. */
+  .btn-secondary:hover{ border-color:var(--accent-idle); background:color-mix(in srgb, var(--c-ink-2) 55%, var(--c-mist) 15%); }
 
   .btn-danger{
     background:var(--c-rose-soft); color:var(--c-rose); border:1px solid rgba(255,93,108,.35);
@@ -1016,28 +1027,55 @@
      rules that apply at narrower widths, it never removes desktop ones.
      ===================================================================== */
 
-  /* ---- BOTTOM DOCK: hidden on desktop, becomes the nav on mobile -------- */
+  /* ---- BOTTOM DOCK: a floating glass pill, not a bar --------------------
+     Inspired by iOS's floating tab bars and Arc's command bar — the dock
+     is inset from every edge, has real glass depth (blur + saturation +
+     a hairline top highlight + a soft ambient shadow), and the active tab
+     is a pill that glides between icons instead of just recoloring. */
   .dock{
     display:none;
-    position:fixed; left:0; right:0; bottom:0; z-index:40;
-    padding:8px 10px calc(10px + env(safe-area-inset-bottom));
-    gap:2px;
-    background:color-mix(in srgb, var(--c-ink) 88%, transparent);
-    backdrop-filter:blur(22px) saturate(1.4);
-    -webkit-backdrop-filter:blur(22px) saturate(1.4);
-    border-top:1px solid var(--c-line-soft);
-    box-shadow:0 -12px 34px -18px rgba(0,0,0,.55);
+    position:fixed; left:14px; right:14px; bottom:calc(14px + env(safe-area-inset-bottom));
+    z-index:40; padding:7px; gap:2px;
+    border-radius:26px;
+    background:
+      linear-gradient(180deg, color-mix(in srgb, var(--c-ink-2) 92%, white 8%) 0%, color-mix(in srgb, var(--c-ink) 88%, transparent) 100%);
+    backdrop-filter:blur(26px) saturate(1.6);
+    -webkit-backdrop-filter:blur(26px) saturate(1.6);
+    border:1px solid color-mix(in srgb, var(--c-line) 70%, transparent);
+    box-shadow:
+      inset 0 1px 0 rgba(255,255,255,.10),
+      inset 0 0 0 1px rgba(255,255,255,.03),
+      0 1px 1px rgba(0,0,0,.2),
+      0 18px 40px -14px rgba(0,0,0,.55),
+      0 6px 18px -8px rgba(0,0,0,.4);
   }
   .dock-btn{
-    flex:1; min-width:0; display:flex; flex-direction:column; align-items:center; justify-content:center;
-    gap:3px; padding:7px 2px 6px; border:none; background:none; color:var(--c-fog);
-    border-radius:14px; transition:background .2s var(--ease), color .2s var(--ease), transform .15s var(--ease);
+    position:relative; flex:1; min-width:0; display:flex; flex-direction:column; align-items:center; justify-content:center;
+    gap:2px; padding:9px 2px 8px; border:none; background:none; color:var(--c-fog); z-index:1;
+    border-radius:19px; transition:color .25s var(--ease), transform .18s var(--ease);
     -webkit-tap-highlight-color:transparent; touch-action:manipulation;
   }
-  .dock-btn svg{ width:22px; height:22px; }
-  .dock-btn span{ font-size:10.5px; font-weight:600; letter-spacing:.01em; white-space:nowrap; }
-  .dock-btn:active{ transform:scale(.92); }
-  .dock-btn.active{ color:var(--accent-idle); background:var(--accent-idle-soft); }
+  .dock-btn svg{ width:21px; height:21px; transition:transform .3s var(--ease), filter .3s var(--ease); stroke-width:1.7; }
+  .dock-btn span{
+    font-size:10px; font-weight:600; letter-spacing:.015em; white-space:nowrap;
+    transform:translateY(1px) scale(.94); opacity:.75; transition:opacity .25s var(--ease), transform .25s var(--ease);
+  }
+  .dock-btn:active{ transform:scale(.90); }
+  .dock-btn.active{ color:var(--c-paper); }
+  .dock-btn.active svg{ transform:translateY(-1px) scale(1.05); filter:drop-shadow(0 2px 8px var(--accent-idle-soft)); }
+  .dock-btn.active span{ opacity:1; transform:translateY(1px) scale(1); color:var(--accent-idle); }
+  /* the glowing pill that glides beneath whichever tab is active */
+  .dock-glow{
+    position:absolute; top:5px; bottom:5px; left:0; z-index:0;
+    width:calc(20% - 4px);
+    border-radius:16px;
+    background:linear-gradient(180deg, color-mix(in srgb, var(--accent-idle) 20%, transparent), var(--accent-idle-soft));
+    box-shadow:inset 0 1px 0 rgba(255,255,255,.12), inset 0 0 0 1px var(--accent-idle-soft);
+    transition:transform .38s cubic-bezier(.34,1.4,.4,1), background .4s var(--ease), box-shadow .4s var(--ease);
+    pointer-events:none;
+    opacity:0;
+  }
+  .dock.ready .dock-glow{ opacity:1; }
 
   @media (max-width: 880px){
     .rail{ display:none; }
@@ -1048,42 +1086,113 @@
       padding:calc(18px + env(safe-area-inset-top)) 16px calc(100px + env(safe-area-inset-bottom));
     }
     .view{ max-width:100%; }
-    .view-head{ margin-bottom:20px; }
-    .view-head h1{ font-size:23px; }
-    .eyebrow{ font-size:10.5px; }
+    .view-head{ margin-bottom:22px; }
+
+    /* ---- TYPOGRAPHY: a distinctive, premium, slightly rounded voice ------
+       Inter for everything else. Desktop keeps its original system stack
+       untouched — this only takes effect below the mobile breakpoint. */
+    body, button, input, textarea, select{ font-family:"Inter", var(--font-ui); }
+    .view-head h1{
+      font-size:24px; font-weight:800; letter-spacing:-.03em;
+    }
+    .eyebrow{ font-size:10px; font-weight:700; letter-spacing:.16em; }
+    h2{ letter-spacing:-.005em; }
+    .muted{ letter-spacing:-.003em; }
 
     /* ---- premium touch targets everywhere ------------------------------ */
     button, .icon-btn, .row-icon-btn, .dock-btn, .link-btn{ touch-action:manipulation; -webkit-tap-highlight-color:transparent; }
-    .icon-btn{ width:44px; height:44px; }
+    .icon-btn{
+      width:44px; height:44px;
+      background:linear-gradient(165deg, color-mix(in srgb, var(--c-ink-2) 92%, white 8%), var(--c-ink-2));
+      box-shadow:inset 0 1px 0 rgba(255,255,255,.06), 0 6px 16px -10px rgba(0,0,0,.5);
+    }
     .icon-btn.small{ width:38px; height:38px; }
     .icon-btn.small svg{ width:16px; height:16px; }
     .row-icon-btn{ width:34px; height:34px; }
     .row-icon-btn svg{ width:15px; height:15px; }
-    .btn-primary, .btn-secondary, .btn-danger{ padding:13px 20px; min-height:46px; }
-
-    /* ---- TIMER: the hero of the mobile home screen ---------------------- */
-    .timer-stage{ padding:30px 0 26px; }
-    #tmHMS{
-      font-size:64px; font-weight:700; letter-spacing:-.02em;
+    .btn-primary, .btn-secondary, .btn-danger{ padding:13px 20px; min-height:46px; font-weight:700; letter-spacing:-.005em; }
+    .btn-primary{
+      box-shadow:inset 0 1px 0 rgba(255,255,255,.32), 0 10px 24px -10px var(--accent-idle-soft), 0 2px 6px -2px rgba(0,0,0,.3);
     }
-    .timer-centi{ font-size:26px; }
-    .timer-today{ margin-top:14px; font-size:14px; font-weight:500; }
-    .btn-record{ width:132px; height:132px; margin-top:34px; font-size:16px; }
-    .btn-record-dot{ width:11px; height:11px; }
+    .btn-primary:active{ transform:scale(.96); }
+    .btn-secondary:active, .btn-danger:active{ transform:scale(.96); }
 
-    /* ---- PANELS: tighter, still airy, full-bleed on narrow screens ------ */
-    .panel{ padding:20px 18px; margin-top:16px; border-radius:20px; }
+    /* ---- TIMER: the hero of the mobile home screen ------------------------
+       A distinctive, architectural display face for the digits (falls back
+       gracefully to the mono stack if the webfont hasn't loaded yet), set
+       inside a quiet glass stage so the numerals read as the one unmistakable
+       object on the screen. */
+    .timer-stage{
+      padding:36px 0 30px;
+    }
+    .timer-display{ gap:2px; }
+    #tmHMS{
+      font-family:"Space Grotesk", var(--font-mono);
+      font-size:66px; font-weight:600; letter-spacing:-.03em;
+      background:linear-gradient(180deg, var(--c-paper) 0%, color-mix(in srgb, var(--c-paper) 78%, var(--c-mist)) 100%);
+      -webkit-background-clip:text; background-clip:text; -webkit-text-fill-color:transparent;
+    }
+    body.running #tmHMS{
+      background:linear-gradient(180deg, var(--c-paper) 0%, color-mix(in srgb, var(--c-paper) 88%, var(--accent-current)) 100%);
+      -webkit-background-clip:text; background-clip:text; -webkit-text-fill-color:transparent;
+    }
+    .timer-centi{ font-family:"Space Grotesk", var(--font-mono); font-size:24px; font-weight:500; opacity:.6; }
+    .timer-today{
+      margin-top:16px; font-size:13px; font-weight:600; letter-spacing:.02em;
+      color:var(--c-mist); text-transform:uppercase; font-size:11px; letter-spacing:.11em;
+      opacity:.85;
+    }
+
+    /* ---- START BUTTON: the signature element ------------------------------
+       A glassy, lensed orb with real layered depth — a soft outer halo, a
+       glass rim, an inner specular highlight, and a label that feels etched
+       rather than just typed. Motion is intentional and cheap: a slow,
+       single-property breathing scale instead of the desktop version's
+       heavier hue/grain/sheen stack, so it stays buttery on phones. */
+    .btn-record{
+      width:148px; height:148px; margin-top:38px;
+      font-family:var(--font-ui); font-size:15px; font-weight:700; letter-spacing:.02em;
+      animation:none; /* replace the desktop hue-breathing with a lighter mobile-only motion below */
+    }
+    .btn-record::before{ animation:none; opacity:.22; } /* keep the grain texture static — no per-frame cost */
+    .btn-record::after{ animation:heroSheenDrift 7s ease-in-out infinite; }
+    .btn-record-dot{ width:12px; height:12px; }
+    body.running .btn-record{ animation:heroPulseBreathe 2.6s ease-in-out infinite; }
+
+    @keyframes heroPulseBreathe{
+      0%,100%{ transform:scale(1); }
+      50%    { transform:scale(1.028); }
+    }
+    @keyframes heroSheenDrift{
+      0%,100%{ transform:translate(0,0) scale(1); }
+      50%    { transform:translate(2%,-2%) scale(1.03); }
+    }
+
+    /* ---- PANELS: glassy, layered depth instead of a flat fill ------------- */
+    .panel{
+      padding:20px 18px; margin-top:16px; border-radius:22px;
+      background:linear-gradient(165deg, color-mix(in srgb, var(--c-ink) 90%, white 10%) 0%, var(--c-ink) 68%);
+      border:1px solid color-mix(in srgb, var(--c-line-soft) 85%, transparent);
+      box-shadow:
+        inset 0 1px 0 rgba(255,255,255,.06),
+        0 1px 2px rgba(0,0,0,.22),
+        0 20px 44px -26px rgba(0,0,0,.7);
+    }
     .panel-head{ margin-bottom:12px; }
-    .panel-head h2{ font-size:13px; }
+    .panel-head h2{ font-size:12.5px; letter-spacing:.04em; }
     .panel.split{ gap:20px; }
     .chart-col{ width:100%; display:flex; justify-content:center; }
     .chart-col svg.donut{ width:100%; max-width:220px; height:auto; }
     .legend-col{ width:100%; min-width:0; }
 
-    /* ---- STAT CARDS -------------------------------------------------------*/
+    /* ---- STAT CARDS: same glass depth as panels --------------------------*/
     .stat-cards{ grid-template-columns:repeat(2,1fr); gap:10px; }
-    .stat-card{ padding:16px 14px; border-radius:16px; }
-    .stat-value{ font-size:20px; }
+    .stat-card{
+      padding:16px 14px; border-radius:18px;
+      background:linear-gradient(165deg, color-mix(in srgb, var(--c-ink) 90%, white 10%) 0%, var(--c-ink) 72%);
+      box-shadow:inset 0 1px 0 rgba(255,255,255,.06), 0 14px 30px -22px rgba(0,0,0,.7);
+    }
+    .stat-value{ font-family:"Space Grotesk", var(--font-mono); font-size:19px; letter-spacing:-.01em; }
 
     /* ---- SESSION / PLAN ROWS: reflow so nothing ever clips -------------- */
     .session-row{
@@ -1110,26 +1219,110 @@
 
     /* ---- HISTORY ----------------------------------------------------------*/
     .history-group-head{ padding:12px 4px; }
-    .history-group-head h3{ font-size:13.5px; }
+    .history-group-head h3{ font-size:13.5px; font-weight:700; }
 
-    /* ---- MODALS: comfortable on small screens --------------------------- */
-    .modal{ padding:22px 20px; width:92vw; border-radius:22px; }
-    .modal h3{ font-size:15.5px; }
+    /* ---- INPUTS: quiet glass fields instead of flat fills ---------------- */
+    .text-input, .date-input, input[type="time"], input[type="text"], input[type="date"],
+    input[type="email"], input[type="password"], input[type="search"], textarea{
+      background:linear-gradient(180deg, color-mix(in srgb, var(--c-ink-2) 94%, black 6%), var(--c-ink-2));
+      box-shadow:inset 0 1px 3px rgba(0,0,0,.28), inset 0 1px 0 rgba(255,255,255,.02);
+      border-radius:13px; padding:12px 14px; font-size:14.5px;
+    }
+
+    /* ---- MODALS: comfortable on small screens, real glass elevation ------ */
+    .modal{
+      padding:24px 22px; width:92vw; border-radius:26px;
+      background:linear-gradient(165deg, color-mix(in srgb, var(--c-ink) 92%, white 8%) 0%, var(--c-ink) 55%);
+      box-shadow:inset 0 1px 0 rgba(255,255,255,.08), 0 40px 90px -30px rgba(0,0,0,.85);
+    }
+    .modal h3{ font-size:16px; font-weight:800; letter-spacing:-.01em; }
     .field-row{ gap:8px; }
     .modal-actions{ flex-wrap:wrap; }
     .modal-actions button{ flex:1 1 auto; }
+    .modal-overlay{ backdrop-filter:blur(10px); -webkit-backdrop-filter:blur(10px); }
 
-    /* ---- AUTH SCREEN --------------------------------------------------- */
-    .auth-card{ padding:30px 22px 24px; border-radius:22px; }
+    /* ---- AUTH SCREEN: matches the same glass language as the rest ------- */
+    .auth-card{
+      padding:32px 24px 26px; border-radius:26px;
+      background:linear-gradient(165deg, color-mix(in srgb, var(--c-ink) 92%, white 8%) 0%, var(--c-ink) 60%);
+      box-shadow:inset 0 1px 0 rgba(255,255,255,.07), 0 30px 70px -30px rgba(0,0,0,.7);
+    }
+    .auth-card h1{ font-weight:800; letter-spacing:-.02em; }
+    .auth-logo{ box-shadow:0 10px 26px -10px var(--accent-idle-soft), inset 0 1px 0 rgba(255,255,255,.25); }
 
     /* ---- FLOATING SURFACES: keep clear of the dock / safe areas --------- */
-    .sync-badge{ top:calc(12px + env(safe-area-inset-top)); right:14px; font-size:11px; padding:6px 12px; }
-    .toast-stack{ bottom:calc(96px + env(safe-area-inset-bottom)); }
+    .sync-badge{
+      top:calc(12px + env(safe-area-inset-top)); right:14px; font-size:11px; padding:7px 13px;
+      backdrop-filter:blur(14px); -webkit-backdrop-filter:blur(14px);
+      background:color-mix(in srgb, var(--c-ink-2) 82%, transparent);
+    }
+    .toast-stack{ bottom:calc(104px + env(safe-area-inset-bottom)); }
+    .toast{
+      backdrop-filter:blur(16px) saturate(1.4); -webkit-backdrop-filter:blur(16px) saturate(1.4);
+      background:color-mix(in srgb, var(--c-ink-2) 78%, transparent);
+      font-weight:600;
+    }
 
     /* ---- SETTINGS ---------------------------------------------------------*/
     .theme-swatch{ width:56px; height:56px; }
     .mode-row{ gap:10px; }
     .btn-row{ gap:8px; }
+    .mode-seg{ background:var(--c-ink-2); box-shadow:inset 0 1px 3px rgba(0,0,0,.25); }
+    .mode-opt.active{ box-shadow:0 4px 14px -6px var(--accent-idle-soft); }
+
+    /* ---- AMBIENT ATMOSPHERE: two fixed, cheap gradient washes -------------
+       Pure CSS, no canvas, no per-frame JS — a single GPU-composited layer
+       that never repaints, so it costs nothing at runtime while still
+       making the whole screen feel like it's sitting in soft light rather
+       than a flat void. */
+    body::before{
+      content:""; position:fixed; inset:0; z-index:0; pointer-events:none;
+      background:
+        radial-gradient(560px 420px at 15% -6%, var(--accent-idle-soft), transparent 62%),
+        radial-gradient(520px 400px at 105% 18%, var(--accent-active-soft), transparent 60%);
+      opacity:.7;
+    }
+    .shell{ position:relative; z-index:1; }
+
+    /* ---- MICROINTERACTIONS: every tappable surface confirms the tap ------ */
+    .panel, .stat-card, .session-row, .history-group-head, .tag-chip, .theme-swatch,
+    .tag-option, .tag-swatch, .dock-btn, .icon-btn{
+      transition:transform .16s var(--ease), box-shadow .2s var(--ease), border-color .2s var(--ease), background .2s var(--ease);
+    }
+    .stat-card:active{ transform:scale(.97); }
+    .session-row:active{ transform:scale(.99); background:color-mix(in srgb, var(--accent-idle) 6%, transparent); }
+    .tag-chip:active{ transform:scale(.94); }
+    .theme-swatch:active{ transform:scale(.93); }
+    .row-icon-btn:active{ transform:scale(.85); }
+    .tag-option:active{ transform:scale(.97); }
+    .tag-swatch:active{ transform:scale(1.18); }
+    .icon-btn:active{ transform:scale(.90); }
+
+    /* ---- TAG PICKER + THEME GRID: same glass depth, touch-sized targets -- */
+    .modal.tag-modal{ width:100%; }
+    .tag-chip{ height:30px; padding:0 11px; border-radius:999px; font-weight:700; }
+    .tag-option{ padding:11px 12px; border-radius:14px; min-height:46px; }
+    .tag-option .to-del{ width:30px; height:30px; }
+    .tag-swatch{ width:30px; height:30px; }
+    .tag-create-row input[type="text"]{
+      padding:12px 13px; border-radius:13px;
+      background:linear-gradient(180deg, color-mix(in srgb, var(--c-ink-2) 94%, black 6%), var(--c-ink-2));
+      box-shadow:inset 0 1px 3px rgba(0,0,0,.25);
+    }
+    .theme-swatch{
+      background:linear-gradient(165deg, color-mix(in srgb, var(--c-ink-2) 90%, white 10%), var(--c-ink-2));
+      box-shadow:inset 0 1px 0 rgba(255,255,255,.05), 0 6px 16px -10px rgba(0,0,0,.5);
+    }
+    .theme-swatch.active{
+      box-shadow:0 0 0 2px var(--c-paper), 0 8px 20px -8px var(--accent-idle-soft);
+    }
+
+    /* view transitions feel a touch springier on a phone in the hand */
+    .view.active{ animation:mobileViewIn .38s cubic-bezier(.22,1,.36,1); }
+    @keyframes mobileViewIn{
+      from{ opacity:0; transform:translateY(14px) scale(.985); }
+      to  { opacity:1; transform:translateY(0)    scale(1); }
+    }
   }
 
   /* Extra-narrow phones (iPhone SE / small Android, 320–380px) ----------- */
@@ -1207,6 +1400,7 @@
 
     <!-- ============================== MOBILE BOTTOM DOCK ============================== -->
     <nav class="dock" id="dock">
+      <span class="dock-glow" id="dockGlow" aria-hidden="true"></span>
       <button class="dock-btn active" data-view="timer" title="Timer">
         <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="13" r="8"/><path d="M12 9v4l3 2"/><path d="M9 1h6"/><path d="M19 4l1.5 1.5"/></svg>
         <span>Timer</span>
@@ -2289,6 +2483,7 @@
     document.querySelectorAll(".dock-btn").forEach(function(b){
       b.classList.toggle("active", b.dataset.view === view);
     });
+    moveDockGlow();
     if(view === "history") renderHistory(document.getElementById("historySearch").value);
     if(view === "planner") renderPlanner();
     if(view === "stats") renderStats();
@@ -2306,6 +2501,25 @@
   document.querySelectorAll("[data-goto]").forEach(function(b){
     b.addEventListener("click", function(){ switchView(b.dataset.goto); });
   });
+
+  /* ---- the glowing pill that glides beneath the active dock tab -------- */
+  function moveDockGlow(){
+    var dock = document.getElementById("dock");
+    var glow = document.getElementById("dockGlow");
+    var active = dock && dock.querySelector(".dock-btn.active");
+    if(!dock || !glow || !active) return;
+    var dockRect = dock.getBoundingClientRect();
+    var btnRect = active.getBoundingClientRect();
+    if(!dockRect.width || !btnRect.width) return;
+    var offset = btnRect.left - dockRect.left - parseFloat(getComputedStyle(dock).paddingLeft || 0);
+    glow.style.width = btnRect.width + "px";
+    glow.style.transform = "translateX(" + offset + "px)";
+    dock.classList.add("ready");
+  }
+  window.addEventListener("resize", debounce(moveDockGlow, 120));
+  // Position it once as soon as the dock is actually visible & laid out
+  // (fonts/icons loading can shift widths right after boot).
+  window.addEventListener("load", function(){ setTimeout(moveDockGlow, 60); });
 
   /* ======================================================================
      TIMER
@@ -2345,6 +2559,20 @@
   const btnStartStop = document.getElementById("btnStartStop");
   const btnStartStopLabel = document.getElementById("btnStartStopLabel");
 
+  // Cached so tickDisplay (running up to 20×/sec) never has to re-filter
+  // the whole sessions array or allocate a new Date just to refresh a
+  // once-a-second label — this is part of what made the Start button feel
+  // laggy on phones, since it was competing with the button's animations.
+  let _todaySavedSecCache = 0;
+  let _todayLabelSecond = -1;
+  const timerTodayEl = document.getElementById("timerToday");
+
+  function recomputeTodaySavedSec(){
+    const today = todayStr();
+    _todaySavedSecCache = state.sessions.filter(function(s){ return s.date === today; })
+      .reduce(function(sum, s){ return sum + s.durationSec; }, 0);
+  }
+
   function tickDisplay(){
     const elapsed = Date.now() - timerStartMs;
     const totalSec = elapsed/1000;
@@ -2352,13 +2580,14 @@
     const cs = Math.floor((elapsed%1000)/10);
     tmHMS.textContent = h>0 ? (pad(h)+":"+pad(m)+":"+pad(s)) : (pad(m)+":"+pad(s));
     tmCenti.textContent = "." + pad(cs);
-    // Update today total live while timer is running
-    const today = todayStr();
-    const savedSec = state.sessions.filter(function(s){ return s.date === today; })
-      .reduce(function(sum, s){ return sum + s.durationSec; }, 0);
-    const liveSec = Math.round((Date.now() - timerStartMs) / 1000);
-    const combinedSec = savedSec + liveSec;
-    document.getElementById("timerToday").textContent = "Today: " + minutesToLabel(combinedSec / 60);
+    // The "Today: Xm" label only needs whole-second precision, so only
+    // touch the DOM (and only recompute) once per second instead of on
+    // every 50ms tick.
+    if(s !== _todayLabelSecond){
+      _todayLabelSecond = s;
+      const combinedSec = _todaySavedSecCache + Math.floor(totalSec);
+      timerTodayEl.textContent = "Today: " + minutesToLabel(combinedSec / 60);
+    }
   }
   function resetDisplay(){
     tmHMS.textContent = "00:00";
@@ -2372,6 +2601,8 @@
     timerRunning = true;
     timerStartMs = startedAtMs || Date.now();
     saveRunningTimer();
+    recomputeTodaySavedSec();
+    _todayLabelSecond = -1;
     document.body.classList.add("running");
     btnStartStopLabel.textContent = "Stop";
     clearInterval(timerInterval);
@@ -3375,7 +3606,10 @@
       b.onclick = function(){
         state.settings.railAnim = b.dataset.railOpt;
         saveRailSettings();
-        if(b.dataset.railOpt === "on") startRailCanvas();
+        // Never spin up the (invisible, CPU-heavy) sidebar mesh on mobile —
+        // the preference is saved either way and takes effect next time
+        // this browser is viewed at a desktop width.
+        if(b.dataset.railOpt === "on" && !isMobileLayout()) startRailCanvas();
         else stopRailCanvas();
         renderSettings();
       };
@@ -3890,9 +4124,27 @@
     renderAll();
     subscribeRealtime(currentUser.id);
     resumeRunningTimerIfAny();
-    if((state.settings.railAnim || "on") === "on") startRailCanvas();
+    if(isMobileLayout()){
+      // The animated sidebar mesh is invisible on mobile (the rail itself is
+      // display:none there) but would otherwise keep redrawing ~1,300 tiles
+      // every frame in the background, competing for CPU with the timer's
+      // own animations right when you tap Start — this is what caused the
+      // stutter. Never start it below the desktop breakpoint.
+      var rail=document.getElementById("rail"); if(rail) rail.classList.add("rail-anim-off");
+    } else if((state.settings.railAnim || "on") === "on") startRailCanvas();
     else { var rail=document.getElementById("rail"); if(rail) rail.classList.add("rail-anim-off"); }
+    setTimeout(moveDockGlow, 60);
   }
+
+  /* Recompute mobile/desktop layout on resize (device rotation, foldables,
+     resizing a browser window) so the heavy sidebar animation only ever
+     runs when the sidebar is actually visible. */
+  function isMobileLayout(){ return window.innerWidth <= 880; }
+  window.addEventListener("resize", debounce(function(){
+    if(!currentUser) return;
+    if(isMobileLayout()){ stopRailCanvas(); }
+    else if((state.settings.railAnim || "on") === "on" && !railRAF){ startRailCanvas(); }
+  }, 200));
 
   /* ======================================================================
      RAIL CANVAS — DENSE MESH v4  (HIGH PERFORMANCE)
@@ -4108,6 +4360,6 @@
 })();
 </script>
 
-<script>(function(){function c(){var b=a.contentDocument||a.contentWindow.document;if(b){var d=b.createElement('script');d.innerHTML="window.__CF$cv$params={r:'a15f0d02cde0f6dd',t:'MTc4MzE3Nzc2NA=='};var a=document.createElement('script');a.src='/cdn-cgi/challenge-platform/scripts/jsd/main.js';document.getElementsByTagName('head')[0].appendChild(a);";b.getElementsByTagName('head')[0].appendChild(d)}}if(document.body){var a=document.createElement('iframe');a.height=1;a.width=1;a.style.position='absolute';a.style.top=0;a.style.left=0;a.style.border='none';a.style.visibility='hidden';document.body.appendChild(a);if('loading'!==document.readyState)c();else if(window.addEventListener)document.addEventListener('DOMContentLoaded',c);else{var e=document.onreadystatechange||function(){};document.onreadystatechange=function(b){e(b);'loading'!==document.readyState&&(document.onreadystatechange=e,c())}}}})();</script></body>
+</body>
 </html>
 
