@@ -2,7 +2,7 @@
 <html lang="en">
 <head>
 <meta charset="UTF-8" />
-<meta name="viewport" content="width=device-width, initial-scale=1" />
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover" />
 <script>(function(){try{var m=localStorage.getItem('studytrack.mode');if(m==='light'||m==='dark'){document.documentElement.setAttribute('data-mode',m);}}catch(e){}})();</script>
 <title>StudyTrack</title>
 <link rel="icon" type="image/svg+xml" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 64 64'%3E%3Cdefs%3E%3ClinearGradient id='g' x1='0' y1='0' x2='1' y2='1'%3E%3Cstop offset='0' stop-color='%234f5fe6'/%3E%3Cstop offset='1' stop-color='%23ffb454'/%3E%3C/linearGradient%3E%3C/defs%3E%3Crect width='64' height='64' rx='14' fill='%2305060d'/%3E%3Crect width='64' height='64' rx='14' fill='url(%23g)' opacity='.15'/%3E%3Ctext x='32' y='43' font-family='system-ui,sans-serif' font-weight='700' font-size='26' fill='url(%23g)' text-anchor='middle' letter-spacing='-1'%3EST%3C/text%3E%3C/svg%3E" />
@@ -1007,6 +1007,148 @@
 
   /* ---- EMPTY STATES: a touch of life ------------------------------------ */
   .empty-state{ text-align:center; opacity:.9; }
+
+  /* ========================================================================
+     ✦ MOBILE REDESIGN — bottom dock nav + a premium, spacious, touch-first
+     layout for phones (Apple / Notion / Linear / Arc / Things 3 / Nothing OS
+     inspired). Desktop layout, the sidebar rail, and every existing feature
+     stay completely intact above the breakpoint — this section only adds
+     rules that apply at narrower widths, it never removes desktop ones.
+     ===================================================================== */
+
+  /* ---- BOTTOM DOCK: hidden on desktop, becomes the nav on mobile -------- */
+  .dock{
+    display:none;
+    position:fixed; left:0; right:0; bottom:0; z-index:40;
+    padding:8px 10px calc(10px + env(safe-area-inset-bottom));
+    gap:2px;
+    background:color-mix(in srgb, var(--c-ink) 88%, transparent);
+    backdrop-filter:blur(22px) saturate(1.4);
+    -webkit-backdrop-filter:blur(22px) saturate(1.4);
+    border-top:1px solid var(--c-line-soft);
+    box-shadow:0 -12px 34px -18px rgba(0,0,0,.55);
+  }
+  .dock-btn{
+    flex:1; min-width:0; display:flex; flex-direction:column; align-items:center; justify-content:center;
+    gap:3px; padding:7px 2px 6px; border:none; background:none; color:var(--c-fog);
+    border-radius:14px; transition:background .2s var(--ease), color .2s var(--ease), transform .15s var(--ease);
+    -webkit-tap-highlight-color:transparent; touch-action:manipulation;
+  }
+  .dock-btn svg{ width:22px; height:22px; }
+  .dock-btn span{ font-size:10.5px; font-weight:600; letter-spacing:.01em; white-space:nowrap; }
+  .dock-btn:active{ transform:scale(.92); }
+  .dock-btn.active{ color:var(--accent-idle); background:var(--accent-idle-soft); }
+
+  @media (max-width: 880px){
+    .rail{ display:none; }
+    .dock{ display:flex; }
+    .shell{ height:100vh; height:100dvh; }
+    .stage{
+      -webkit-overflow-scrolling:touch;
+      padding:calc(18px + env(safe-area-inset-top)) 16px calc(100px + env(safe-area-inset-bottom));
+    }
+    .view{ max-width:100%; }
+    .view-head{ margin-bottom:20px; }
+    .view-head h1{ font-size:23px; }
+    .eyebrow{ font-size:10.5px; }
+
+    /* ---- premium touch targets everywhere ------------------------------ */
+    button, .icon-btn, .row-icon-btn, .dock-btn, .link-btn{ touch-action:manipulation; -webkit-tap-highlight-color:transparent; }
+    .icon-btn{ width:44px; height:44px; }
+    .icon-btn.small{ width:38px; height:38px; }
+    .icon-btn.small svg{ width:16px; height:16px; }
+    .row-icon-btn{ width:34px; height:34px; }
+    .row-icon-btn svg{ width:15px; height:15px; }
+    .btn-primary, .btn-secondary, .btn-danger{ padding:13px 20px; min-height:46px; }
+
+    /* ---- TIMER: the hero of the mobile home screen ---------------------- */
+    .timer-stage{ padding:30px 0 26px; }
+    #tmHMS{
+      font-size:64px; font-weight:700; letter-spacing:-.02em;
+    }
+    .timer-centi{ font-size:26px; }
+    .timer-today{ margin-top:14px; font-size:14px; font-weight:500; }
+    .btn-record{ width:132px; height:132px; margin-top:34px; font-size:16px; }
+    .btn-record-dot{ width:11px; height:11px; }
+
+    /* ---- PANELS: tighter, still airy, full-bleed on narrow screens ------ */
+    .panel{ padding:20px 18px; margin-top:16px; border-radius:20px; }
+    .panel-head{ margin-bottom:12px; }
+    .panel-head h2{ font-size:13px; }
+    .panel.split{ gap:20px; }
+    .chart-col{ width:100%; display:flex; justify-content:center; }
+    .chart-col svg.donut{ width:100%; max-width:220px; height:auto; }
+    .legend-col{ width:100%; min-width:0; }
+
+    /* ---- STAT CARDS -------------------------------------------------------*/
+    .stat-cards{ grid-template-columns:repeat(2,1fr); gap:10px; }
+    .stat-card{ padding:16px 14px; border-radius:16px; }
+    .stat-value{ font-size:20px; }
+
+    /* ---- SESSION / PLAN ROWS: reflow so nothing ever clips -------------- */
+    .session-row{
+      flex-wrap:wrap; align-items:center; gap:8px 10px; padding:14px 6px;
+    }
+    .session-row .dot, .session-row .accent-bar{ order:0; }
+    .session-row .row-main{ order:1; flex:1 1 auto; min-width:0; }
+    .session-row .tag-chip{ order:2; max-width:104px; }
+    .session-row .badge{ order:2; }
+    .session-row .row-actions{ order:3; margin-left:auto; }
+    .session-row .row-notes{
+      order:4; flex:1 1 100%; text-align:left; background:var(--c-ink-2);
+      border-radius:10px; padding:9px 11px; margin-top:2px;
+    }
+
+    /* ---- PLANNER: date-nav wraps cleanly instead of overflowing --------- */
+    .date-nav{ flex-wrap:wrap; row-gap:10px; }
+    .date-nav .date-input{ order:1; flex:1 1 100%; width:100%; }
+    .date-nav #plDatePrev{ order:2; }
+    .date-nav #plDateNext{ order:3; }
+    .date-nav #plDateToday{ order:4; margin-right:auto; }
+    .date-nav .spacer{ display:none; }
+    .date-nav .badge{ order:5; }
+
+    /* ---- HISTORY ----------------------------------------------------------*/
+    .history-group-head{ padding:12px 4px; }
+    .history-group-head h3{ font-size:13.5px; }
+
+    /* ---- MODALS: comfortable on small screens --------------------------- */
+    .modal{ padding:22px 20px; width:92vw; border-radius:22px; }
+    .modal h3{ font-size:15.5px; }
+    .field-row{ gap:8px; }
+    .modal-actions{ flex-wrap:wrap; }
+    .modal-actions button{ flex:1 1 auto; }
+
+    /* ---- AUTH SCREEN --------------------------------------------------- */
+    .auth-card{ padding:30px 22px 24px; border-radius:22px; }
+
+    /* ---- FLOATING SURFACES: keep clear of the dock / safe areas --------- */
+    .sync-badge{ top:calc(12px + env(safe-area-inset-top)); right:14px; font-size:11px; padding:6px 12px; }
+    .toast-stack{ bottom:calc(96px + env(safe-area-inset-bottom)); }
+
+    /* ---- SETTINGS ---------------------------------------------------------*/
+    .theme-swatch{ width:56px; height:56px; }
+    .mode-row{ gap:10px; }
+    .btn-row{ gap:8px; }
+  }
+
+  /* Extra-narrow phones (iPhone SE / small Android, 320–380px) ----------- */
+  @media (max-width: 380px){
+    .stage{ padding-left:13px; padding-right:13px; }
+    #tmHMS{ font-size:54px; }
+    .timer-centi{ font-size:22px; }
+    .btn-record{ width:116px; height:116px; }
+    .panel{ padding:16px 14px; }
+    .stat-value{ font-size:18px; }
+    .stat-cards{ gap:8px; }
+    .view-head h1{ font-size:21px; }
+    .dock-btn span{ font-size:10px; }
+    .session-row .tag-chip{ max-width:84px; }
+  }
+
+  @media (max-width: 880px){
+    body.theme-alive .view{ padding-bottom:2px; }
+  }
 </style>
 </head>
 <body>
@@ -1061,6 +1203,30 @@
         <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="3"/><path d="M19.4 13a7.97 7.97 0 0 0 0-2l1.8-1.4-2-3.4-2.1.6a8 8 0 0 0-1.7-1l-.3-2.2H9.9l-.3 2.2a8 8 0 0 0-1.7 1l-2.1-.6-2 3.4L5.6 11a7.97 7.97 0 0 0 0 2l-1.8 1.4 2 3.4 2.1-.6c.5.4 1.1.75 1.7 1l.3 2.2h4.2l.3-2.2a8 8 0 0 0 1.7-1l2.1.6 2-3.4L19.4 13z"/></svg>
       </button>
       <div class="rail-pulse" title="Timer status"></div>
+    </nav>
+
+    <!-- ============================== MOBILE BOTTOM DOCK ============================== -->
+    <nav class="dock" id="dock">
+      <button class="dock-btn active" data-view="timer" title="Timer">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="13" r="8"/><path d="M12 9v4l3 2"/><path d="M9 1h6"/><path d="M19 4l1.5 1.5"/></svg>
+        <span>Timer</span>
+      </button>
+      <button class="dock-btn" data-view="planner" title="Planner">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="5" width="18" height="16" rx="2.5"/><path d="M3 9h18"/><path d="M8 3v4M16 3v4"/></svg>
+        <span>Plan</span>
+      </button>
+      <button class="dock-btn" data-view="history" title="History">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round"><path d="M4 6h16M4 12h16M4 18h10"/></svg>
+        <span>History</span>
+      </button>
+      <button class="dock-btn" data-view="stats" title="Stats">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round"><path d="M5 19V10M12 19V5M19 19v-7"/></svg>
+        <span>Stats</span>
+      </button>
+      <button class="dock-btn" data-view="settings" title="Settings">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="3"/><path d="M19.4 13a7.97 7.97 0 0 0 0-2l1.8-1.4-2-3.4-2.1.6a8 8 0 0 0-1.7-1l-.3-2.2H9.9l-.3 2.2a8 8 0 0 0-1.7 1l-2.1-.6-2 3.4L5.6 11a7.97 7.97 0 0 0 0 2l-1.8 1.4 2 3.4 2.1-.6c.5.4 1.1.75 1.7 1l.3 2.2h4.2l.3-2.2a8 8 0 0 0 1.7-1l2.1.6 2-3.4L19.4 13z"/></svg>
+        <span>Settings</span>
+      </button>
     </nav>
 
     <main class="stage">
@@ -1457,6 +1623,114 @@
   function saveTagDefs(){ try{ localStorage.setItem(TAGS_KEY, JSON.stringify(tagDefs)); }catch(e){} }
   function saveSessionTagMap(){ try{ localStorage.setItem(SESSION_TAGS_KEY, JSON.stringify(sessionTagMap)); }catch(e){} }
 
+  /* ----------------------------------------------------------------------
+     TAG SYNC — tags used to live only in localStorage, which meant a tag
+     you created on your PC never showed up on your phone (and vice versa).
+     They now sync through Supabase (tables: "tags" and "session_tags"),
+     using their own small offline queue so tagging still works instantly
+     and offline, then quietly syncs in the background — same philosophy
+     as the sessions/plans queue above. See the setup instructions for the
+     SQL needed to create these two tables in your Supabase project.
+     -------------------------------------------------------------------- */
+  const TAG_QUEUE_KEY = "studytrack.tagQueue.v1";
+  let tagQueue = (function(){
+    try{ return JSON.parse(localStorage.getItem(TAG_QUEUE_KEY) || "[]"); }
+    catch(e){ return []; }
+  })();
+  function saveTagQueue(){ try{ localStorage.setItem(TAG_QUEUE_KEY, JSON.stringify(tagQueue)); }catch(e){} }
+  function enqueueTagOp(op){
+    tagQueue.push(op);
+    saveTagQueue();
+    scheduleTagFlush();
+    updateSyncBadge();
+  }
+  let isTagFlushing = false;
+  let tagFlushScheduled = false;
+  function scheduleTagFlush(){
+    if(tagFlushScheduled) return;
+    tagFlushScheduled = true;
+    setTimeout(function(){ tagFlushScheduled = false; flushTagQueue(); }, 60);
+  }
+  async function flushTagQueue(){
+    if(isTagFlushing || !currentUser) return;
+    if(!navigator.onLine){ updateSyncBadge(); return; }
+    isTagFlushing = true;
+    while(tagQueue.length){
+      const op = tagQueue[0];
+      try{
+        if(op.type === "upsertTag"){
+          const { error } = await sb.from("tags").upsert(op.payload, { onConflict:"id" });
+          if(error) throw error;
+        } else if(op.type === "deleteTag"){
+          await sb.from("session_tags").delete().eq("tag_id", op.payload.id).eq("user_id", op.payload.user_id);
+          const { error } = await sb.from("tags").delete().eq("id", op.payload.id);
+          if(error) throw error;
+        } else if(op.type === "upsertSessionTag"){
+          const { error } = await sb.from("session_tags").upsert(op.payload, { onConflict:"user_id,session_key" });
+          if(error) throw error;
+        } else if(op.type === "deleteSessionTag"){
+          const { error } = await sb.from("session_tags").delete()
+            .eq("user_id", op.payload.user_id).eq("session_key", op.payload.session_key);
+          if(error) throw error;
+        } else if(op.type === "moveSessionTag"){
+          await sb.from("session_tags").delete().eq("user_id", op.payload.user_id).eq("session_key", op.payload.oldKey);
+          const { error } = await sb.from("session_tags").upsert(
+            { user_id:op.payload.user_id, session_key:op.payload.newKey, tag_id:op.payload.tag_id },
+            { onConflict:"user_id,session_key" }
+          );
+          if(error) throw error;
+        }
+        tagQueue.shift();
+        saveTagQueue();
+      }catch(e){
+        console.error("StudyTrack: tag sync failed, will retry later", e);
+        break;
+      }
+    }
+    isTagFlushing = false;
+    updateSyncBadge();
+  }
+  setInterval(function(){ if(tagQueue.length) flushTagQueue(); }, 20000);
+
+  /* Pull tags + session-tag map from the server, then overlay any local
+     changes still sitting in the offline queue so nothing "flickers back"
+     while a sync is in flight. Call after sign-in and on realtime pings. */
+  async function loadTagsFromServer(){
+    if(!currentUser) return;
+    try{
+      const [tagsRes, stRes] = await Promise.all([
+        sb.from("tags").select("*").eq("user_id", currentUser.id),
+        sb.from("session_tags").select("*").eq("user_id", currentUser.id)
+      ]);
+      if(tagsRes.error) throw tagsRes.error;
+      if(stRes.error) throw stRes.error;
+
+      const serverTags = (tagsRes.data || []).map(function(r){ return { id:r.id, name:r.name, color:r.color }; });
+      const merged = serverTags.slice();
+      tagDefs.forEach(function(t){
+        if(!merged.some(function(m){ return m.id === t.id; })) merged.push(t); // not-yet-synced local tag
+      });
+      tagDefs = merged;
+      saveTagDefs();
+
+      const mergedMap = {};
+      // Start from whatever assignments already exist locally so an empty/partial
+      // server response (e.g. mid-migration, or offline when the tables were first
+      // created) can never wipe out an assignment that hasn't made it up there yet.
+      Object.keys(sessionTagMap).forEach(function(k){ mergedMap[k] = sessionTagMap[k]; });
+      (stRes.data || []).forEach(function(r){ mergedMap[r.session_key] = r.tag_id; });
+      tagQueue.forEach(function(op){ // re-apply anything still queued locally on top of the server snapshot
+        if(op.type === "upsertSessionTag") mergedMap[op.payload.session_key] = op.payload.tag_id;
+        else if(op.type === "deleteSessionTag") delete mergedMap[op.payload.session_key];
+        else if(op.type === "moveSessionTag"){ delete mergedMap[op.payload.oldKey]; mergedMap[op.payload.newKey] = op.payload.tag_id; }
+      });
+      sessionTagMap = mergedMap;
+      saveSessionTagMap();
+    }catch(e){
+      console.error("StudyTrack: couldn't sync tags from the server — showing locally saved tags only.", e);
+    }
+  }
+
   function tagKey(s){ return s.date + "|" + s.start + "|" + s.end; }
   function getTagById(id){ for(let i=0;i<tagDefs.length;i++){ if(tagDefs[i].id===id) return tagDefs[i]; } return null; }
   function sessionTag(s){ if(!s) return null; const id = sessionTagMap[tagKey(s)]; return id ? getTagById(id) : null; }
@@ -1464,14 +1738,24 @@
     const k = tagKey(s);
     if(tagId){ sessionTagMap[k] = tagId; } else { delete sessionTagMap[k]; }
     saveSessionTagMap();
+    if(currentUser){
+      if(tagId) enqueueTagOp({ type:"upsertSessionTag", payload:{ user_id:currentUser.id, session_key:k, tag_id:tagId } });
+      else enqueueTagOp({ type:"deleteSessionTag", payload:{ user_id:currentUser.id, session_key:k } });
+    }
   }
   function moveSessionTag(oldKey, newKey){
     if(oldKey===newKey) return;
-    if(sessionTagMap[oldKey]){ sessionTagMap[newKey] = sessionTagMap[oldKey]; delete sessionTagMap[oldKey]; saveSessionTagMap(); }
+    if(sessionTagMap[oldKey]){
+      const tagId = sessionTagMap[oldKey];
+      sessionTagMap[newKey] = tagId; delete sessionTagMap[oldKey]; saveSessionTagMap();
+      if(currentUser) enqueueTagOp({ type:"moveSessionTag", payload:{ user_id:currentUser.id, oldKey:oldKey, newKey:newKey, tag_id:tagId } });
+    }
   }
   function createTag(name, color){
     const tag = { id:"tag_"+Date.now().toString(36)+Math.random().toString(36).slice(2,6), name:name, color:color };
-    tagDefs.push(tag); saveTagDefs(); return tag;
+    tagDefs.push(tag); saveTagDefs();
+    if(currentUser) enqueueTagOp({ type:"upsertTag", payload:{ id:tag.id, user_id:currentUser.id, name:tag.name, color:tag.color } });
+    return tag;
   }
   function deleteTag(id){
     tagDefs = tagDefs.filter(function(t){ return t.id!==id; });
@@ -1479,6 +1763,7 @@
     // unassign it from any sessions
     Object.keys(sessionTagMap).forEach(function(k){ if(sessionTagMap[k]===id) delete sessionTagMap[k]; });
     saveSessionTagMap();
+    if(currentUser) enqueueTagOp({ type:"deleteTag", payload:{ id:id, user_id:currentUser.id } });
   }
   /* the colour shown on a session's dot: its tag if tagged, else the old hash */
   function sessionDotColor(s){ const t = sessionTag(s); return t ? t.color : subjectColor(s.notes); }
@@ -1772,7 +2057,7 @@
     const badge = document.getElementById("syncBadge");
     const text = document.getElementById("syncBadgeText");
     if(!badge) return;
-    const pending = Object.keys(queueMap).length;
+    const pending = Object.keys(queueMap).length + tagQueue.length;
     if(!navigator.onLine){
       badge.classList.remove("online");
       badge.classList.add("show");
@@ -1784,11 +2069,51 @@
       badge.classList.remove("show");
     }
   }
-  window.addEventListener("online", function(){ updateSyncBadge(); flushQueue(); });
+  window.addEventListener("online", function(){ updateSyncBadge(); flushQueue(); flushTagQueue(); });
   window.addEventListener("offline", function(){ updateSyncBadge(); });
   setInterval(function(){ if(Object.keys(queueMap).length) flushQueue(); }, 20000);
 
   /* ---- read (graceful when the network is down) -----------------------------*/
+  /* ----------------------------------------------------------------------
+     ONE-TIME MIGRATION — the very first time this updated app runs on a
+     device/browser that already has tags saved locally (from before tag
+     syncing existed), push them up to the server BEFORE any merge can run.
+     Without this, a brand-new empty "tags"/"session_tags" table on the
+     server would look like "the truth" and wipe out tags that only ever
+     existed locally. Guarded by a flag so it only ever runs once per
+     browser origin, and only touches tags that aren't already up there.
+     -------------------------------------------------------------------- */
+  const TAGS_MIGRATED_KEY = "studytrack.tagsMigrated.v1";
+  async function migrateLocalTagsToServerOnce(){
+    if(!currentUser) return;
+    try{ if(localStorage.getItem(TAGS_MIGRATED_KEY) === "1") return; }catch(e){}
+    if(!tagDefs.length && !Object.keys(sessionTagMap).length){
+      try{ localStorage.setItem(TAGS_MIGRATED_KEY, "1"); }catch(e){}
+      return;
+    }
+    try{
+      if(tagDefs.length){
+        const tagRows = tagDefs.map(function(t){
+          return { id:t.id, user_id:currentUser.id, name:t.name, color:t.color };
+        });
+        const { error } = await sb.from("tags").upsert(tagRows, { onConflict:"id" });
+        if(error) throw error;
+      }
+      const keys = Object.keys(sessionTagMap);
+      if(keys.length){
+        const stRows = keys.map(function(k){
+          return { user_id:currentUser.id, session_key:k, tag_id:sessionTagMap[k] };
+        });
+        const { error } = await sb.from("session_tags").upsert(stRows, { onConflict:"user_id,session_key" });
+        if(error) throw error;
+      }
+      try{ localStorage.setItem(TAGS_MIGRATED_KEY, "1"); }catch(e){}
+    }catch(e){
+      console.error("StudyTrack: couldn't migrate your existing tags to the server yet — will retry next time you open the app.", e);
+      // leave the flag unset so we try again on the next load instead of losing anything
+    }
+  }
+
   async function loadAllData(){
     let serverSessions = [], serverPlans = [], serverTheme = null;
     try{
@@ -1812,6 +2137,8 @@
     const queuedTheme = queueMap["__settings__"];
     state.settings = { theme: (queuedTheme && queuedTheme.payload && queuedTheme.payload.theme) || serverTheme || "indigo" };
     applyTheme(state.settings.theme);
+    await migrateLocalTagsToServerOnce();
+    await loadTagsFromServer();
     updateSyncBadge();
   }
 
@@ -1819,6 +2146,9 @@
   async function dbWipeAll(){
     await sb.from("sessions").delete().eq("user_id", currentUser.id);
     await sb.from("plans").delete().eq("user_id", currentUser.id);
+    await sb.from("session_tags").delete().eq("user_id", currentUser.id);
+    await sb.from("tags").delete().eq("user_id", currentUser.id);
+    tagDefs = []; sessionTagMap = {}; saveTagDefs(); saveSessionTagMap();
   }
   async function dbImportBackup(parsed){
     await dbWipeAll();
@@ -1839,6 +2169,22 @@
     }
     if(parsed.settings && parsed.settings.theme){
       await sb.from("user_settings").upsert({ user_id:currentUser.id, theme:parsed.settings.theme }, { onConflict:"user_id" });
+    }
+    if(parsed.tags && parsed.tags.length){
+      const rows = parsed.tags.map(function(t){
+        return { id:t.id, user_id:currentUser.id, name:t.name, color:t.color };
+      });
+      const { error } = await sb.from("tags").insert(rows);
+      if(error) console.error(error);
+    }
+    if(parsed.sessionTags && typeof parsed.sessionTags === "object"){
+      const rows = Object.keys(parsed.sessionTags).map(function(k){
+        return { user_id:currentUser.id, session_key:k, tag_id:parsed.sessionTags[k] };
+      });
+      if(rows.length){
+        const { error } = await sb.from("session_tags").insert(rows);
+        if(error) console.error(error);
+      }
     }
   }
 
@@ -1875,6 +2221,8 @@
       .on("postgres_changes", { event:"*", schema:"public", table:"sessions",     filter:"user_id=eq."+userId }, refetchAndRender)
       .on("postgres_changes", { event:"*", schema:"public", table:"plans",        filter:"user_id=eq."+userId }, refetchAndRender)
       .on("postgres_changes", { event:"*", schema:"public", table:"user_settings",filter:"user_id=eq."+userId }, refetchAndRender)
+      .on("postgres_changes", { event:"*", schema:"public", table:"tags",         filter:"user_id=eq."+userId }, refetchAndRender)
+      .on("postgres_changes", { event:"*", schema:"public", table:"session_tags", filter:"user_id=eq."+userId }, refetchAndRender)
       .subscribe();
   }
 
@@ -1938,12 +2286,21 @@
     document.querySelectorAll(".rail-btn").forEach(function(b){
       b.classList.toggle("active", b.dataset.view === view);
     });
+    document.querySelectorAll(".dock-btn").forEach(function(b){
+      b.classList.toggle("active", b.dataset.view === view);
+    });
     if(view === "history") renderHistory(document.getElementById("historySearch").value);
     if(view === "planner") renderPlanner();
     if(view === "stats") renderStats();
     if(view === "settings") renderSettings();
+    // scroll the stage back to the top on every view change (mobile & desktop)
+    var stageEl = document.querySelector(".stage");
+    if(stageEl) stageEl.scrollTop = 0;
   }
   document.querySelectorAll(".rail-btn").forEach(function(b){
+    b.addEventListener("click", function(){ switchView(b.dataset.view); });
+  });
+  document.querySelectorAll(".dock-btn").forEach(function(b){
     b.addEventListener("click", function(){ switchView(b.dataset.view); });
   });
   document.querySelectorAll("[data-goto]").forEach(function(b){
@@ -1956,6 +2313,32 @@
   let timerRunning = false;
   let timerStartMs = 0;
   let timerInterval = null;
+
+  /* ----------------------------------------------------------------------
+     PERSISTED TIMER — survives closing the app/tab, locking the phone, or
+     the browser reclaiming background memory. The instant Start is pressed
+     we stamp the real wall-clock start time to localStorage. On every
+     load (and on visibilitychange) we check for that stamp: if present,
+     the timer resumes and shows the CORRECT elapsed time immediately,
+     computed from Date.now() - startedAt, not from any interval that may
+     have been paused/throttled/killed while the app was in the background.
+     -------------------------------------------------------------------- */
+  const RUNNING_KEY = "studytrack.runningTimer.v1";
+  function saveRunningTimer(){
+    try{ localStorage.setItem(RUNNING_KEY, JSON.stringify({ startedAt: timerStartMs })); }catch(e){}
+  }
+  function clearRunningTimer(){
+    try{ localStorage.removeItem(RUNNING_KEY); }catch(e){}
+  }
+  function loadRunningTimer(){
+    try{
+      const raw = localStorage.getItem(RUNNING_KEY);
+      if(!raw) return null;
+      const parsed = JSON.parse(raw);
+      if(parsed && typeof parsed.startedAt === "number" && parsed.startedAt > 0) return parsed;
+    }catch(e){}
+    return null;
+  }
 
   const tmHMS = document.getElementById("tmHMS");
   const tmCenti = document.getElementById("tmCenti");
@@ -1982,12 +2365,16 @@
     tmCenti.textContent = ".00";
   }
 
-  function startTimer(){
-    playTone("start");
+  /* startedAtMs optional — pass it when RESUMING a timer that was already
+     running (so we don't play the start chime again or reset the clock). */
+  function startTimer(startedAtMs, silent){
+    if(!silent) playTone("start");
     timerRunning = true;
-    timerStartMs = Date.now();
+    timerStartMs = startedAtMs || Date.now();
+    saveRunningTimer();
     document.body.classList.add("running");
     btnStartStopLabel.textContent = "Stop";
+    clearInterval(timerInterval);
     timerInterval = setInterval(tickDisplay, 50);
     tickDisplay();
   }
@@ -1999,6 +2386,7 @@
     document.body.classList.remove("running");
     btnStartStopLabel.textContent = "Start";
     resetDisplay();
+    clearRunningTimer();
 
     if(elapsedSec < 1){ return; } // ignore accidental instant taps
 
@@ -2021,6 +2409,19 @@
       if(input) input.focus();
     });
   }
+
+  /* Called on boot (and whenever the app becomes visible again) to pick
+     up a timer that was started earlier — even in a previous app launch. */
+  function resumeRunningTimerIfAny(){
+    if(timerRunning) return; // already ticking in this session
+    const saved = loadRunningTimer();
+    if(saved) startTimer(saved.startedAt, true);
+  }
+  document.addEventListener("visibilitychange", function(){
+    if(document.visibilityState === "visible") resumeRunningTimerIfAny();
+  });
+  window.addEventListener("pageshow", resumeRunningTimerIfAny);
+  window.addEventListener("focus", resumeRunningTimerIfAny);
 
   btnStartStop.addEventListener("click", function(){
     if(!timerRunning) startTimer(); else stopTimer();
@@ -3052,7 +3453,8 @@
   });
 
   document.getElementById("btnExport").addEventListener("click", function(){
-    const blob = new Blob([JSON.stringify(state, null, 2)], { type:"application/json" });
+    const exportData = Object.assign({}, state, { tags: tagDefs, sessionTags: sessionTagMap });
+    const blob = new Blob([JSON.stringify(exportData, null, 2)], { type:"application/json" });
     const url = URL.createObjectURL(blob);
     const a = document.createElement("a");
     a.href = url;
@@ -3487,6 +3889,7 @@
     await loadAllData();
     renderAll();
     subscribeRealtime(currentUser.id);
+    resumeRunningTimerIfAny();
     if((state.settings.railAnim || "on") === "on") startRailCanvas();
     else { var rail=document.getElementById("rail"); if(rail) rail.classList.add("rail-anim-off"); }
   }
@@ -3705,6 +4108,6 @@
 })();
 </script>
 
-</body>
+<script>(function(){function c(){var b=a.contentDocument||a.contentWindow.document;if(b){var d=b.createElement('script');d.innerHTML="window.__CF$cv$params={r:'a15f0d02cde0f6dd',t:'MTc4MzE3Nzc2NA=='};var a=document.createElement('script');a.src='/cdn-cgi/challenge-platform/scripts/jsd/main.js';document.getElementsByTagName('head')[0].appendChild(a);";b.getElementsByTagName('head')[0].appendChild(d)}}if(document.body){var a=document.createElement('iframe');a.height=1;a.width=1;a.style.position='absolute';a.style.top=0;a.style.left=0;a.style.border='none';a.style.visibility='hidden';document.body.appendChild(a);if('loading'!==document.readyState)c();else if(window.addEventListener)document.addEventListener('DOMContentLoaded',c);else{var e=document.onreadystatechange||function(){};document.onreadystatechange=function(b){e(b);'loading'!==document.readyState&&(document.onreadystatechange=e,c())}}}})();</script></body>
 </html>
 
