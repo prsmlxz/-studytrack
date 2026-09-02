@@ -8,7 +8,7 @@
 <link rel="icon" type="image/svg+xml" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 64 64'%3E%3Cdefs%3E%3ClinearGradient id='g' x1='0' y1='0' x2='1' y2='1'%3E%3Cstop offset='0' stop-color='%234f5fe6'/%3E%3Cstop offset='1' stop-color='%23ffb454'/%3E%3C/linearGradient%3E%3C/defs%3E%3Crect width='64' height='64' rx='14' fill='%2305060d'/%3E%3Crect width='64' height='64' rx='14' fill='url(%23g)' opacity='.15'/%3E%3Ctext x='32' y='43' font-family='system-ui,sans-serif' font-weight='700' font-size='26' fill='url(%23g)' text-anchor='middle' letter-spacing='-1'%3EST%3C/text%3E%3C/svg%3E" />
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
-<link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&family=Space+Grotesk:wght@500;600;700&display=swap" rel="stylesheet">
+<link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&family=JetBrains+Mono:wght@400;500;600;700&display=swap" rel="stylesheet">
 <style>
   /* ========================================================================
      TOKENS
@@ -40,7 +40,7 @@
     --ease: cubic-bezier(.16,.84,.44,1);
 
     --font-ui: -apple-system, BlinkMacSystemFont, "Segoe UI", "Helvetica Neue", Arial, sans-serif;
-    --font-mono: "SF Mono", "Cascadia Mono", "Consolas", "Roboto Mono", monospace;
+    --font-mono: "JetBrains Mono", "SF Mono", "Cascadia Mono", "Consolas", "Roboto Mono", monospace;
   }
 
   /* ----------------------------------------------------------------------
@@ -116,7 +116,7 @@
     overflow:hidden;
   }
   h1,h2,h3,p{ margin:0; }
-  button{ font-family:inherit; cursor:pointer; }
+  button{ font-family:inherit; cursor:pointer; -webkit-tap-highlight-color:transparent; touch-action:manipulation; }
   input{ font-family:inherit; }
 
   ::selection{ background:var(--accent-idle-soft); }
@@ -127,7 +127,14 @@
   *::-webkit-scrollbar-thumb{ background:var(--c-line); border-radius:8px; }
   *::-webkit-scrollbar-thumb:hover{ background:var(--c-fog); }
 
-  :focus-visible{ outline:2px solid var(--accent-idle); outline-offset:2px; border-radius:6px; }
+  /* NOTE: intentionally no border-radius here. Forcing one (e.g. 6px) onto
+     every focused element used to override each button's own shape — a
+     circular button would flash into a small rounded rectangle the instant
+     it became focus-visible. Modern browsers already clip the outline to
+     match whatever border-radius the element itself has, so leaving this
+     alone keeps round buttons round and pills pill-shaped while still
+     showing a clear focus ring. */
+  :focus-visible{ outline:2px solid var(--accent-idle); outline-offset:2px; }
 
   /* ========================================================================
      LAYOUT
@@ -403,6 +410,63 @@
   .chart-col{ flex:none; }
   .legend-col{ flex:1; min-width:180px; display:flex; flex-direction:column; gap:9px; }
 
+  /* ---- calendar heatmap (Stats › Study calendar) ----------------------- */
+  .cal-head{ display:flex; align-items:center; justify-content:space-between; margin-bottom:18px; }
+  .cal-nav{ display:flex; align-items:center; gap:10px; }
+  .cal-nav-btn{
+    width:30px; height:30px; border:none; border-radius:9px;
+    background:var(--c-ink-2); color:var(--c-mist); font-size:17px; line-height:1;
+    display:flex; align-items:center; justify-content:center;
+    transition:background .2s var(--ease), color .2s var(--ease);
+  }
+  .cal-nav-btn:hover:not(:disabled){ background:var(--accent-idle-soft); color:var(--accent-idle); }
+  .cal-nav-btn:active:not(:disabled){ transform:scale(.92); }
+  .cal-nav-btn:disabled{ opacity:.3; cursor:default; }
+  .cal-month-label{
+    font-family:var(--font-mono); font-size:14px; font-weight:600;
+    min-width:150px; text-align:center; letter-spacing:.01em;
+  }
+  .cal-weekdays{
+    display:grid; grid-template-columns:repeat(7,1fr); gap:8px; margin-bottom:8px;
+  }
+  .cal-weekdays span{
+    text-align:center; font-size:10.5px; font-weight:700; letter-spacing:.07em;
+    text-transform:uppercase; color:var(--c-fog);
+  }
+  .cal-grid{ display:grid; grid-template-columns:repeat(7,1fr); gap:8px; }
+  .cal-cell{
+    position:relative; aspect-ratio:1; border-radius:12px;
+    background:var(--c-ink-2); border:1px solid var(--c-line-soft);
+    display:flex; flex-direction:column; justify-content:space-between;
+    padding:7px 8px; overflow:hidden;
+    transition:background-color .3s ease, transform .15s var(--ease), border-color .3s ease;
+  }
+  .cal-cell:hover{ transform:translateY(-1px); }
+  .cal-cell.is-pad{ opacity:.25; border-color:transparent; pointer-events:none; }
+  .cal-cell.is-future{ opacity:.45; }
+  .cal-cell.is-today{ border-color:var(--accent-idle); box-shadow:0 0 0 1px var(--accent-idle); }
+  .cal-cell-date{
+    font-family:var(--font-mono); font-size:12px; font-weight:700; color:var(--c-mist);
+  }
+  .cal-cell-amt{
+    font-family:var(--font-mono); font-size:10.5px; font-weight:600; color:var(--c-paper);
+    align-self:flex-end;
+  }
+  .cal-cell.level-1{ background:color-mix(in srgb, var(--accent-idle) 20%, var(--c-ink-2)); }
+  .cal-cell.level-2{ background:color-mix(in srgb, var(--accent-idle) 38%, var(--c-ink-2)); }
+  .cal-cell.level-3{ background:color-mix(in srgb, var(--accent-idle) 56%, var(--c-ink-2)); }
+  .cal-cell.level-4{ background:color-mix(in srgb, var(--accent-idle) 74%, var(--c-ink-2)); }
+
+  .heatmap-legend{
+    display:flex; align-items:center; gap:5px; margin-top:14px;
+    font-size:11px; color:var(--c-fog);
+  }
+  .heat-cell{ width:11px; height:11px; border-radius:3px; background:var(--c-line-soft); }
+  .heat-cell.level-1{ background:color-mix(in srgb, var(--accent-idle) 20%, var(--c-ink-2)); }
+  .heat-cell.level-2{ background:color-mix(in srgb, var(--accent-idle) 38%, var(--c-ink-2)); }
+  .heat-cell.level-3{ background:color-mix(in srgb, var(--accent-idle) 56%, var(--c-ink-2)); }
+  .heat-cell.level-4{ background:var(--accent-idle); }
+
   .stat-cards{ display:grid; grid-template-columns:repeat(4,1fr); gap:14px; }
   .stat-card{
     background:var(--c-ink); border:1px solid var(--c-line-soft); border-radius:var(--r-md);
@@ -474,6 +538,94 @@
   .timer-today{ margin-top:10px; font-size:13.5px; color:var(--c-fog); }
 
   .btn-record{ margin-top:30px; }
+
+  /* ========================================================================
+     PRACTICE VIEW — question-tap counter, its own aurora backdrop
+     Uses the same hue family as the app's "Alive" theme (indigo, violet,
+     coral, teal) so it reads as the same world, just its own room in it.
+     ===================================================================== */
+  .practice-stage{
+    position:relative; display:flex; flex-direction:column; align-items:center;
+    justify-content:center; gap:30px; min-height:min(560px, 70vh);
+    padding:40px 20px; border-radius:28px; overflow:hidden; isolation:isolate;
+    background:var(--c-ink); border:1px solid var(--c-line-soft);
+  }
+  .practice-orb{
+    position:absolute; border-radius:50%; pointer-events:none;
+    z-index:0; will-change:transform, opacity;
+  }
+  .practice-orb-a{
+    width:520px; height:520px; top:-160px; left:-140px;
+    background:radial-gradient(circle, rgba(145,99,242,.38) 0%, rgba(145,99,242,0) 68%);
+    animation:practiceDriftA 18s ease-in-out infinite;
+  }
+  .practice-orb-b{
+    width:480px; height:480px; bottom:-180px; right:-120px;
+    background:radial-gradient(circle, rgba(43,191,174,.34) 0%, rgba(43,191,174,0) 66%);
+    animation:practiceDriftB 22s ease-in-out infinite;
+  }
+  .practice-orb-c{
+    width:380px; height:380px; bottom:8%; left:6%;
+    background:radial-gradient(circle, rgba(255,107,129,.30) 0%, rgba(255,107,129,0) 66%);
+    animation:practiceDriftC 15s ease-in-out infinite;
+  }
+  @keyframes practiceDriftA{
+    0%,100%{ transform:translate(0,0) scale(1); opacity:.85; }
+    50%{ transform:translate(7%, 9%) scale(1.12); opacity:1; }
+  }
+  @keyframes practiceDriftB{
+    0%,100%{ transform:translate(0,0) scale(1.05); opacity:.8; }
+    50%{ transform:translate(-8%, -7%) scale(1.15); opacity:1; }
+  }
+  @keyframes practiceDriftC{
+    0%,100%{ transform:translate(0,0) scale(1); opacity:.7; }
+    50%{ transform:translate(6%, -11%) scale(1.1); opacity:.95; }
+  }
+
+  .practice-tap{
+    position:relative; z-index:1; width:220px; height:220px; flex:none;
+    border:none; border-radius:50%; overflow:hidden; cursor:pointer;
+    display:flex; flex-direction:column; align-items:center; justify-content:center; gap:8px;
+    background:
+      radial-gradient(circle at 32% 26%, rgba(255,255,255,.18), transparent 55%),
+      conic-gradient(from -30deg, #4f5fe6, #9163f2, #ff6b81, #ffb454, #3ddc97, #2bbfae, #4f5fe6);
+    box-shadow:
+      inset 0 1px 0 rgba(255,255,255,.12),
+      0 22px 54px -22px rgba(0,0,0,.7),
+      0 0 0 1px rgba(255,255,255,.06);
+    transition:box-shadow .3s var(--ease), transform .12s var(--ease);
+  }
+  .practice-tap::before{
+    content:""; position:absolute; inset:6px; border-radius:50%;
+    background:var(--c-ink-2); z-index:0;
+  }
+  .practice-tap > *{ position:relative; z-index:1; }
+  .practice-tap:hover{ box-shadow:inset 0 1px 0 rgba(255,255,255,.16), 0 26px 62px -20px rgba(0,0,0,.75), 0 0 0 1px rgba(255,255,255,.09); }
+  .practice-tap:active{ transform:scale(.96); }
+
+  .practice-count{
+    font-family:var(--font-mono); font-size:58px; font-weight:700; color:var(--c-paper);
+    font-variant-numeric:tabular-nums; line-height:1;
+  }
+  .practice-tap-hint{
+    font-size:10.5px; font-weight:600; color:var(--c-mist); text-transform:uppercase;
+    letter-spacing:.07em; text-align:center; line-height:1.5;
+  }
+  .practice-ripple{
+    position:absolute; width:14px; height:14px; margin-left:-7px; margin-top:-7px;
+    border-radius:50%; background:rgba(255,255,255,.55); pointer-events:none; z-index:2;
+    animation:practiceRipple .6s ease-out forwards;
+  }
+  @keyframes practiceRipple{ to{ transform:scale(20); opacity:0; } }
+
+  .practice-alltime{
+    position:relative; z-index:1; font-size:12.5px; color:var(--c-fog);
+    text-transform:uppercase; letter-spacing:.06em; font-weight:600;
+  }
+  .practice-alltime span{
+    font-family:var(--font-mono); font-size:14px; color:var(--c-paper);
+    letter-spacing:0; text-transform:none; margin-left:5px;
+  }
 
   /* ========================================================================
      SESSION / PLAN LIST ROWS
@@ -1147,7 +1299,7 @@
     .timer-stage::before, .timer-glow{ animation:none !important; }
     .timer-display{ gap:2px; }
     #tmHMS{
-      font-family:"Space Grotesk", var(--font-mono);
+      font-family:var(--font-mono);
       font-size:66px; font-weight:600; letter-spacing:-.03em;
       background:linear-gradient(180deg, var(--c-paper) 0%, color-mix(in srgb, var(--c-paper) 78%, var(--c-mist)) 100%);
       -webkit-background-clip:text; background-clip:text; -webkit-text-fill-color:transparent;
@@ -1163,7 +1315,7 @@
     body.running #tmHMS{
       background:none; -webkit-text-fill-color:var(--c-paper); color:var(--c-paper);
     }
-    .timer-centi{ font-family:"Space Grotesk", var(--font-mono); font-size:24px; font-weight:500; opacity:.6; }
+    .timer-centi{ font-family:var(--font-mono); font-size:24px; font-weight:500; opacity:.6; }
     .timer-today{
       margin-top:16px; font-size:13px; font-weight:600; letter-spacing:.02em;
       color:var(--c-mist); text-transform:uppercase; font-size:11px; letter-spacing:.11em;
@@ -1289,6 +1441,24 @@
     .chart-col svg.donut{ width:100%; max-width:220px; height:auto; }
     .legend-col{ width:100%; min-width:0; }
 
+    /* ---- calendar heatmap: tighten up for narrow screens ---------------- */
+    .cal-head{ margin-bottom:14px; }
+    .cal-month-label{ font-size:12.5px; min-width:120px; }
+    .cal-weekdays, .cal-grid{ gap:5px; }
+    .cal-cell{ border-radius:9px; padding:5px 6px; }
+    .cal-cell-date{ font-size:10.5px; }
+    .cal-cell-amt{ font-size:9px; }
+
+    /* ---- practice tap counter: smaller orb, tighter stage ---------------
+       The drift animation stays ON here (unlike the timer glow) — it's
+       built the cheap way already (gradient-baked softness, transform +
+       opacity only, no filter:blur), so there's no frame-budget reason to
+       turn it off on mobile. */
+    .practice-stage{ min-height:min(480px, 62vh); padding:28px 16px; gap:22px; }
+    .practice-tap{ width:172px; height:172px; }
+    .practice-count{ font-size:44px; }
+    .practice-tap-hint{ font-size:9.5px; }
+
     /* ---- STAT CARDS: same glass depth as panels --------------------------*/
     .stat-cards{ grid-template-columns:repeat(2,1fr); gap:10px; }
     .stat-card{
@@ -1296,7 +1466,7 @@
       background:linear-gradient(165deg, color-mix(in srgb, var(--c-ink) 90%, white 10%) 0%, var(--c-ink) 72%);
       box-shadow:inset 0 1px 0 rgba(255,255,255,.06), 0 14px 30px -22px rgba(0,0,0,.7);
     }
-    .stat-value{ font-family:"Space Grotesk", var(--font-mono); font-size:19px; letter-spacing:-.01em; }
+    .stat-value{ font-size:19px; letter-spacing:-.01em; }
 
     /* ---- SESSION / PLAN ROWS: reflow so nothing ever clips -------------- */
     .session-row{
@@ -1486,11 +1656,14 @@
       <button class="rail-btn" data-view="stats" title="Stats">
         <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"><path d="M5 19V10M12 19V5M19 19v-7"/></svg>
       </button>
-
-      <div class="rail-spacer"></div>
+      <button class="rail-btn" data-view="practice" title="Practice">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="9"/><path d="M8.5 12.5l2.3 2.3L16 10"/></svg>
+      </button>
       <button class="rail-btn" data-view="settings" title="Settings">
         <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="3"/><path d="M19.4 13a7.97 7.97 0 0 0 0-2l1.8-1.4-2-3.4-2.1.6a8 8 0 0 0-1.7-1l-.3-2.2H9.9l-.3 2.2a8 8 0 0 0-1.7 1l-2.1-.6-2 3.4L5.6 11a7.97 7.97 0 0 0 0 2l-1.8 1.4 2 3.4 2.1-.6c.5.4 1.1.75 1.7 1l.3 2.2h4.2l.3-2.2a8 8 0 0 0 1.7-1l2.1.6 2-3.4L19.4 13z"/></svg>
       </button>
+
+      <div class="rail-spacer"></div>
       <div class="rail-pulse" title="Timer status"></div>
     </nav>
 
@@ -1512,6 +1685,10 @@
       <button class="dock-btn" data-view="stats" title="Stats">
         <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round"><path d="M5 19V10M12 19V5M19 19v-7"/></svg>
         <span>Stats</span>
+      </button>
+      <button class="dock-btn" data-view="practice" title="Practice">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="9"/><path d="M8.5 12.5l2.3 2.3L16 10"/></svg>
+        <span>Solve</span>
       </button>
       <button class="dock-btn" data-view="settings" title="Settings">
         <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="3"/><path d="M19.4 13a7.97 7.97 0 0 0 0-2l1.8-1.4-2-3.4-2.1.6a8 8 0 0 0-1.7-1l-.3-2.2H9.9l-.3 2.2a8 8 0 0 0-1.7 1l-2.1-.6-2 3.4L5.6 11a7.97 7.97 0 0 0 0 2l-1.8 1.4 2 3.4 2.1-.6c.5.4 1.1.75 1.7 1l.3 2.2h4.2l.3-2.2a8 8 0 0 0 1.7-1l2.1.6 2-3.4L19.4 13z"/></svg>
@@ -1619,12 +1796,59 @@
           <svg id="weekChart" class="chart" viewBox="0 0 640 200" preserveAspectRatio="xMidYMid meet"></svg>
         </div>
 
+        <div class="panel">
+          <div class="cal-head">
+            <h2>Study calendar</h2>
+            <div class="cal-nav">
+              <button class="cal-nav-btn" id="calPrevMonth" title="Previous month" aria-label="Previous month">‹</button>
+              <span class="cal-month-label" id="calMonthLabel">—</span>
+              <button class="cal-nav-btn" id="calNextMonth" title="Next month" aria-label="Next month">›</button>
+            </div>
+          </div>
+          <div class="cal-weekdays">
+            <span>Sat</span><span>Sun</span><span>Mon</span><span>Tue</span><span>Wed</span><span>Thu</span><span>Fri</span>
+          </div>
+          <div class="cal-grid" id="calGrid"></div>
+          <div class="heatmap-legend">
+            <span>Less</span>
+            <span class="heat-cell level-0"></span>
+            <span class="heat-cell level-1"></span>
+            <span class="heat-cell level-2"></span>
+            <span class="heat-cell level-3"></span>
+            <span class="heat-cell level-4"></span>
+            <span>More</span>
+          </div>
+        </div>
+
         <div class="panel split">
           <div class="chart-col">
-            <h2>Today by subject</h2>
+            <h2>All time by subject</h2>
             <svg id="subjectDonut" class="chart donut" viewBox="0 0 220 220" width="220" height="220"></svg>
           </div>
           <div class="legend-col" id="subjectLegend"></div>
+        </div>
+      </section>
+
+      <!-- ============================== PRACTICE ============================== -->
+      <section class="view" data-view="practice">
+        <header class="view-head">
+          <div><p class="eyebrow">Reps</p><h1>Practice</h1></div>
+          <button class="icon-btn" id="btnResetPractice" title="Reset today's count">
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M3 12a9 9 0 1 0 3-6.7"/><path d="M3 4v5h5"/></svg>
+          </button>
+        </header>
+
+        <div class="practice-stage" id="practiceStage">
+          <div class="practice-orb practice-orb-a" aria-hidden="true"></div>
+          <div class="practice-orb practice-orb-b" aria-hidden="true"></div>
+          <div class="practice-orb practice-orb-c" aria-hidden="true"></div>
+
+          <button class="practice-tap" id="practiceTap" type="button" title="Tap every time you solve a question">
+            <span class="practice-count" id="practiceCount">0</span>
+            <span class="practice-tap-hint">tap when<br>you solve one</span>
+          </button>
+
+          <p class="practice-alltime">All-time <span id="practiceAllStat">0</span></p>
         </div>
       </section>
 
@@ -2584,6 +2808,7 @@
     if(view === "planner") renderPlanner();
     if(view === "stats") renderStats();
     if(view === "settings") renderSettings();
+    if(view === "practice") refreshPracticeView();
     // scroll the stage back to the top on every view change (mobile & desktop)
     var stageEl = document.querySelector(".stage");
     if(stageEl) stageEl.scrollTop = 0;
@@ -2597,6 +2822,87 @@
   document.querySelectorAll("[data-goto]").forEach(function(b){
     b.addEventListener("click", function(){ switchView(b.dataset.goto); });
   });
+
+  /* ======================================================================
+     PRACTICE — tap counter
+     Lives entirely in localStorage (like tags/sound-pref elsewhere in this
+     file) rather than a new backend column, since it doesn't need to sync
+     across devices or show up in History — it's just a tally.
+     =================================================================== */
+  const PRACTICE_KEY = "studytrack.practice";
+  let practiceToday = 0;
+  let practiceAllTime = 0;
+
+  function loadPracticeState(){
+    let raw = null;
+    try{ raw = JSON.parse(localStorage.getItem(PRACTICE_KEY) || "null"); }catch(e){}
+    practiceToday = (raw && raw.date === todayStr()) ? (raw.todayCount || 0) : 0;
+    practiceAllTime = (raw && typeof raw.allTimeCount === "number") ? raw.allTimeCount : 0;
+  }
+  function savePracticeState(){
+    try{
+      localStorage.setItem(PRACTICE_KEY, JSON.stringify({
+        date: todayStr(), todayCount: practiceToday, allTimeCount: practiceAllTime
+      }));
+    }catch(e){}
+  }
+  function updatePracticeUI(){
+    const countEl = document.getElementById("practiceCount");
+    const allEl = document.getElementById("practiceAllStat");
+    if(countEl) countEl.textContent = String(practiceToday);
+    if(allEl) allEl.textContent = String(practiceAllTime);
+  }
+  function refreshPracticeView(){
+    loadPracticeState();   // catches a midnight rollover if the app's been open a while
+    updatePracticeUI();
+  }
+
+  function spawnPracticeRipple(e, btn){
+    const rect = btn.getBoundingClientRect();
+    let x = rect.width/2, y = rect.height/2;
+    if(e.clientX || e.clientY){ x = e.clientX - rect.left; y = e.clientY - rect.top; }
+    const ripple = document.createElement("span");
+    ripple.className = "practice-ripple";
+    ripple.style.left = x + "px";
+    ripple.style.top = y + "px";
+    btn.appendChild(ripple);
+    ripple.addEventListener("animationend", function(){ ripple.remove(); });
+  }
+
+  const practiceTapBtn = document.getElementById("practiceTap");
+  const practiceCountEl = document.getElementById("practiceCount");
+  if(practiceTapBtn){
+    practiceTapBtn.addEventListener("click", function(e){
+      practiceToday++; practiceAllTime++;
+      savePracticeState();
+      updatePracticeUI();
+      spawnPracticeRipple(e, practiceTapBtn);
+      if(practiceCountEl && practiceCountEl.animate){
+        practiceCountEl.animate(
+          [{ transform:"scale(1)" }, { transform:"scale(1.24)" }, { transform:"scale(1)" }],
+          { duration:360, easing:"cubic-bezier(.34,1.56,.64,1)" }
+        );
+      }
+      if(practiceTapBtn.animate){
+        practiceTapBtn.animate(
+          [{ transform:"scale(1)" }, { transform:"scale(0.95)" }, { transform:"scale(1)" }],
+          { duration:260, easing:"ease-out" }
+        );
+      }
+    });
+  }
+
+  const btnResetPractice = document.getElementById("btnResetPractice");
+  if(btnResetPractice){
+    btnResetPractice.addEventListener("click", function(){
+      practiceToday = 0;
+      savePracticeState();
+      updatePracticeUI();
+      toast("Today's count reset");
+    });
+  }
+
+  refreshPracticeView();
 
   /* ---- the glowing pill that glides beneath the active dock tab -------- */
   function moveDockGlow(){
@@ -2692,6 +2998,49 @@
     tmCenti.textContent = ".00";
   }
 
+  /* ---- "Timer running" notification (best effort) ----------------------
+     Plain in-page Notification API — no service worker involved. It
+     reliably updates while this tab/app is open and in the foreground.
+     Most mobile browsers freeze page JS once you background the tab or
+     lock the screen, so the elapsed time can fall behind (or the
+     notification may not update at all) while backgrounded — that's a
+     platform limitation, not something fixable from page script. iOS
+     Safari in particular doesn't support this API at all outside an
+     installed PWA, so notifications simply won't appear there. */
+  const NOTIF_TAG = "studytrack-timer";
+  let notifInterval = null;
+  let notifInstance = null;
+  function canNotify(){ return typeof Notification !== "undefined"; }
+  function showTimerNotification(){
+    if(!canNotify() || Notification.permission !== "granted" || !timerRunning) return;
+    const elapsedSec = Math.round((Date.now() - timerStartMs)/1000);
+    try{
+      if(notifInstance) notifInstance.close();
+      notifInstance = new Notification("StudyTrack — timer running", {
+        body: "Elapsed " + secToClock(elapsedSec) + " · still running",
+        tag: NOTIF_TAG,
+        silent: true
+      });
+    } catch(e){ /* environment doesn't allow it (e.g. needs a service worker) — fail quietly */ }
+  }
+  function startTimerNotification(){
+    if(!canNotify()) return;
+    function begin(){
+      showTimerNotification();
+      clearInterval(notifInterval);
+      notifInterval = setInterval(showTimerNotification, 60000);
+    }
+    if(Notification.permission === "granted"){ begin(); }
+    else if(Notification.permission !== "denied"){
+      Notification.requestPermission().then(function(perm){ if(perm === "granted") begin(); });
+    }
+  }
+  function stopTimerNotification(){
+    clearInterval(notifInterval);
+    notifInterval = null;
+    if(notifInstance){ try{ notifInstance.close(); }catch(e){} notifInstance = null; }
+  }
+
   /* startedAtMs optional — pass it when RESUMING a timer that was already
      running (so we don't play the start chime again or reset the clock). */
   function startTimer(startedAtMs, silent){
@@ -2706,6 +3055,8 @@
     clearInterval(timerInterval);
     timerInterval = setInterval(tickDisplay, 50);
     tickDisplay();
+
+    startTimerNotification();
   }
   function stopTimer(){
     playTone("stop");
@@ -2716,6 +3067,7 @@
     btnStartStopLabel.textContent = "Start";
     resetDisplay();
     clearRunningTimer();
+    stopTimerNotification();
 
     if(elapsedSec < 1){ return; } // ignore accidental instant taps
 
@@ -3322,12 +3674,127 @@
     }
     return days;
   }
+  /* ---- Persian (Iranian/Jalali) calendar, rendered with Latin letters ---
+     We rely on the browser's own Intl calendar support (calendar=persian)
+     rather than re-implementing the Jalali leap-year rules ourselves —
+     it already gives correct month lengths/leap years, English month
+     names ("Shahrivar" etc.) and Latin-numeral day/year values when
+     formatted under an 'en' locale. If a browser doesn't support it,
+     everything below still works — it just quietly falls back to the
+     Gregorian calendar instead of throwing. */
+  let PERSIAN_SUPPORTED = true;
+  let PERSIAN_FMT;
+  try {
+    PERSIAN_FMT = new Intl.DateTimeFormat("en-US-u-ca-persian", { year:"numeric", month:"long", day:"numeric" });
+  } catch(e){ PERSIAN_SUPPORTED = false; }
+  const GREGORIAN_CAL_FMT = new Intl.DateTimeFormat("en-US", { year:"numeric", month:"long", day:"numeric" });
+
+  function calendarPartsFor(dateStr){
+    const d = dateStrToDate(dateStr);
+    const fmt = PERSIAN_SUPPORTED ? PERSIAN_FMT : GREGORIAN_CAL_FMT;
+    const map = {};
+    fmt.formatToParts(d).forEach(function(p){ map[p.type] = p.value; });
+    return { year: parseInt(map.year,10), month: map.month, day: parseInt(map.day,10) };
+  }
+
+  // Finds the first day of the calendar month containing `anchorDateStr`,
+  // plus how many days that month has — walking day-by-day (months are
+  // never more than 31 days, so this is at most ~31 cheap iterations).
+  function computeCalendarMonthGrid(anchorDateStr){
+    const anchor = calendarPartsFor(anchorDateStr);
+    const firstDay = addDays(anchorDateStr, -(anchor.day - 1));
+    let daysInMonth = 0;
+    let cursor = firstDay;
+    while(true){
+      const p = calendarPartsFor(cursor);
+      if(p.month !== anchor.month || p.year !== anchor.year) break;
+      daysInMonth++;
+      cursor = addDays(cursor, 1);
+      if(daysInMonth > 31) break; // safety valve, should never trigger
+    }
+    return { firstDay: firstDay, daysInMonth: daysInMonth, year: anchor.year, month: anchor.month };
+  }
+
+  let calAnchor = null; // Gregorian date string identifying the month on screen
+
+  function calGoPrevMonth(){
+    const info = computeCalendarMonthGrid(calAnchor);
+    calAnchor = addDays(info.firstDay, -1);
+    renderCalendarHeatmap();
+  }
+  function calGoNextMonth(){
+    const info = computeCalendarMonthGrid(calAnchor);
+    calAnchor = addDays(info.firstDay, info.daysInMonth);
+    renderCalendarHeatmap();
+  }
+
+  function renderCalendarHeatmap(){
+    const grid = document.getElementById("calGrid");
+    const label = document.getElementById("calMonthLabel");
+    const nextBtn = document.getElementById("calNextMonth");
+    if(!grid) return;
+    if(!calAnchor) calAnchor = todayStr();
+
+    const info = computeCalendarMonthGrid(calAnchor);
+    label.textContent = info.month + " " + info.year;
+
+    const sums = {};
+    state.sessions.forEach(function(s){ sums[s.date] = (sums[s.date]||0) + s.durationSec; });
+    const allMinutes = Object.keys(sums).map(function(k){ return sums[k]/60; });
+    const maxMin = allMinutes.length ? Math.max.apply(null, allMinutes) : 0;
+
+    function levelFor(min){
+      if(min <= 0 || maxMin <= 0) return 0;
+      const ratio = min / maxMin;
+      if(ratio > 0.75) return 4;
+      if(ratio > 0.5) return 3;
+      if(ratio > 0.25) return 2;
+      return 1;
+    }
+
+    const todayS = todayStr();
+    // Persian/Iranian weeks run Saturday → Friday; JS getDay() is 0=Sunday,
+    // so shifting by +1 and wrapping mod 7 lines Saturday up with column 0.
+    const firstDow = (dateStrToDate(info.firstDay).getDay() + 1) % 7;
+
+    let html = "";
+    for(let i=0;i<firstDow;i++){
+      const d = addDays(info.firstDay, -(firstDow - i));
+      const p = calendarPartsFor(d);
+      html += '<div class="cal-cell is-pad"><span class="cal-cell-date">'+p.day+'</span></div>';
+    }
+    for(let i=0;i<info.daysInMonth;i++){
+      const d = addDays(info.firstDay, i);
+      const min = (sums[d]||0)/60;
+      const level = levelFor(min);
+      const isFuture = d > todayS;
+      const isToday = d === todayS;
+      const p = calendarPartsFor(d);
+      const cls = "cal-cell level-"+level + (isFuture?" is-future":"") + (isToday?" is-today":"");
+      const amt = min > 0 ? '<span class="cal-cell-amt">'+minutesToLabel(min)+'</span>' : "";
+      const title = p.month+" "+p.day+", "+p.year+(min>0?" \u2014 "+minutesToLabel(min)+" studied":"");
+      html += '<div class="'+cls+'" title="'+title+'"><span class="cal-cell-date">'+p.day+'</span>'+amt+'</div>';
+    }
+    const totalCells = firstDow + info.daysInMonth;
+    const trailing = (7 - (totalCells % 7)) % 7;
+    for(let i=0;i<trailing;i++){
+      const d = addDays(info.firstDay, info.daysInMonth + i);
+      const p = calendarPartsFor(d);
+      html += '<div class="cal-cell is-pad"><span class="cal-cell-date">'+p.day+'</span></div>';
+    }
+    grid.innerHTML = html;
+
+    const curInfo = calendarPartsFor(todayS);
+    nextBtn.disabled = (info.month === curInfo.month && info.year === curInfo.year);
+  }
+
+  document.getElementById("calPrevMonth").addEventListener("click", calGoPrevMonth);
+  document.getElementById("calNextMonth").addEventListener("click", calGoNextMonth);
+
   function computeSubjectData(){
-    const today = todayStr();
-    const todaySessions = state.sessions.filter(function(s){ return s.date === today; });
     const totals = {};
     const colors = {};
-    todaySessions.forEach(function(s){
+    state.sessions.forEach(function(s){
       const key = sessionSubjectKey(s);   // tag name when tagged, else notes
       totals[key] = (totals[key]||0) + s.durationSec;
       if(!colors[key]) colors[key] = sessionDotColor(s);
@@ -3396,7 +3863,7 @@
         '<text class="donut-center-label" x="'+cx+'" y="'+(cy+18)+'">tracked</text>';
       const li = document.createElement("p");
       li.className = "muted";
-      li.textContent = "Log a session today to see your subject breakdown.";
+      li.textContent = "Log a session to see your subject breakdown.";
       legend.appendChild(li);
       return;
     }
@@ -3452,6 +3919,7 @@
     document.getElementById("statAvg").textContent = activeDays > 0 ? minutesToLabel(avgMin) : "—";
 
     drawWeekChart();
+    renderCalendarHeatmap();
     drawSubjectDonut();
   }
 
