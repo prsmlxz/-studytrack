@@ -386,6 +386,14 @@
   }
   .btn-danger:hover{ background:rgba(255,93,108,.24); }
 
+  .btn-ghost{
+    background:transparent; color:var(--c-fog); border:1px solid var(--c-line);
+    padding:10px 18px; border-radius:var(--r-sm); font-size:13.5px; font-weight:500;
+    transition:border-color .2s var(--ease), color .2s var(--ease), background .2s var(--ease);
+  }
+  .btn-ghost:hover{ border-color:var(--accent-idle); color:var(--c-paper); background:var(--c-ink-2); }
+  .btn-sm{ padding:6px 12px; font-size:12.5px; }
+
   .link-btn{
     background:none; border:none; color:var(--accent-idle); font-size:13px; font-weight:600;
     padding:0;
@@ -582,6 +590,60 @@
     50%{ transform:translate(6%, -11%) scale(1.1); opacity:.95; }
   }
 
+  /* ---- orbit-ring: the Practice tab's own live "timer" ------------------
+     Mirrors the exact same body.running state the main Timer view uses, so
+     it's always in sync with whatever's actually running — just rendered
+     as two small satellites orbiting a glowing dial instead of a plain
+     digital readout. Only transform/opacity are animated, so it's as cheap
+     as the aurora orbs above. */
+  .orbit-ring{ position:relative; z-index:1; width:190px; height:190px; flex:none; }
+  .orbit-track{
+    position:absolute; inset:0; border-radius:50%;
+    border:1.5px dashed var(--c-line-soft);
+  }
+  .orbit-arm{
+    position:absolute; inset:0; border-radius:50%;
+    animation-play-state:paused; will-change:transform;
+  }
+  .orbit-arm-a{ animation:orbitSpin 7s linear infinite; }
+  .orbit-arm-b{ animation:orbitSpinReverse 11s linear infinite; }
+  body.running .orbit-arm{ animation-play-state:running; }
+  @keyframes orbitSpin{ to{ transform:rotate(360deg); } }
+  @keyframes orbitSpinReverse{ to{ transform:rotate(-360deg); } }
+  .orbit-dot{
+    position:absolute; top:-4px; left:50%; width:9px; height:9px; margin-left:-4.5px;
+    border-radius:50%; opacity:.35; transition:opacity .5s ease, box-shadow .5s ease;
+  }
+  .orbit-dot-a{ background:#9163f2; }
+  .orbit-dot-b{ background:#2bbfae; top:auto; bottom:-4px; }
+  body.running .orbit-dot{ opacity:1; box-shadow:0 0 10px 2px currentColor; }
+  body.running .orbit-dot-a{ color:#9163f2; }
+  body.running .orbit-dot-b{ color:#2bbfae; }
+  .orbit-center{
+    position:absolute; inset:14px; border-radius:50%; overflow:hidden;
+    display:flex; flex-direction:column; align-items:center; justify-content:center; gap:3px;
+    background:var(--c-ink-2); border:1px solid var(--c-line-soft);
+  }
+  .orbit-center::before{
+    content:""; position:absolute; inset:0; z-index:0;
+    background:radial-gradient(circle, rgba(145,99,242,.35) 0%, transparent 70%);
+    opacity:0; transition:opacity .5s ease; will-change:transform, opacity;
+  }
+  body.running .orbit-center::before{ opacity:1; animation:orbitGlow 2.6s ease-in-out infinite; }
+  @keyframes orbitGlow{
+    0%,100%{ transform:scale(1); opacity:.55; }
+    50%{ transform:scale(1.18); opacity:.95; }
+  }
+  .orbit-time{
+    position:relative; z-index:1; font-family:var(--font-mono); font-size:24px; font-weight:700;
+    color:var(--c-paper); font-variant-numeric:tabular-nums; line-height:1;
+  }
+  .orbit-label{
+    position:relative; z-index:1; font-size:9px; font-weight:700; text-transform:uppercase;
+    letter-spacing:.09em; color:var(--c-fog); transition:color .3s ease;
+  }
+  body.running .orbit-label{ color:#9163f2; }
+
   .practice-tap{
     position:relative; z-index:1; width:220px; height:220px; flex:none;
     border:none; border-radius:50%; overflow:hidden; cursor:pointer;
@@ -618,6 +680,39 @@
   }
   @keyframes practiceRipple{ to{ transform:scale(20); opacity:0; } }
 
+  .practice-tap-wrap{ position:relative; z-index:1; }
+  .practice-particle{
+    position:absolute; width:6px; height:6px; margin-left:-3px; margin-top:-3px;
+    border-radius:50%; background:#fff; pointer-events:none; z-index:3;
+    animation:practiceParticleFly .6s ease-out forwards;
+  }
+  .practice-particle.is-milestone{
+    width:8px; height:8px; margin-left:-4px; margin-top:-4px;
+    background:#ffd76a; box-shadow:0 0 8px 2px rgba(255,215,106,.8);
+  }
+  @keyframes practiceParticleFly{
+    0%{ transform:translate(0,0) scale(1); opacity:1; }
+    100%{ transform:translate(var(--dx,0), var(--dy,0)) scale(.3); opacity:0; }
+  }
+  .practice-streak-pop{
+    position:absolute; left:50%; top:-6px; transform:translateX(-50%);
+    font-size:14px; font-weight:800; color:#ffd76a; white-space:nowrap;
+    pointer-events:none; z-index:4; text-shadow:0 0 12px rgba(255,215,106,.6);
+    animation:practiceStreakPop 1.1s ease-out forwards;
+  }
+  @keyframes practiceStreakPop{
+    0%{ opacity:0; transform:translate(-50%, 6px) scale(.8); }
+    20%{ opacity:1; transform:translate(-50%, -8px) scale(1.05); }
+    35%{ transform:translate(-50%, -12px) scale(1); }
+    100%{ opacity:0; transform:translate(-50%, -50px) scale(1); }
+  }
+  .practice-tap.is-milestone{ animation:practiceMilestonePulse .7s ease-out; }
+  @keyframes practiceMilestonePulse{
+    0%{ box-shadow:inset 0 1px 0 rgba(255,255,255,.12), 0 22px 54px -22px rgba(0,0,0,.7), 0 0 0 1px rgba(255,255,255,.06), 0 0 0 0 rgba(255,215,106,.6); }
+    45%{ box-shadow:inset 0 1px 0 rgba(255,255,255,.12), 0 22px 54px -22px rgba(0,0,0,.7), 0 0 0 1px rgba(255,255,255,.06), 0 0 0 24px rgba(255,215,106,0); }
+    100%{ box-shadow:inset 0 1px 0 rgba(255,255,255,.12), 0 22px 54px -22px rgba(0,0,0,.7), 0 0 0 1px rgba(255,255,255,.06), 0 0 0 24px rgba(255,215,106,0); }
+  }
+
   .practice-alltime{
     position:relative; z-index:1; font-size:12.5px; color:var(--c-fog);
     text-transform:uppercase; letter-spacing:.06em; font-weight:600;
@@ -626,6 +721,61 @@
     font-family:var(--font-mono); font-size:14px; color:var(--c-paper);
     letter-spacing:0; text-transform:none; margin-left:5px;
   }
+
+  /* ========================================================================
+     HEADERS TAB — remote control panel for the companion Chrome extension.
+     Everything here only ever reads status or sends the small allow-listed
+     commands (activate/deactivate/propose) — see background.js for why.
+     ===================================================================== */
+  .hdr-status{
+    font-size:11.5px; font-weight:700; text-transform:uppercase; letter-spacing:.05em;
+    padding:5px 11px; border-radius:999px; background:var(--c-ink-2); color:var(--c-fog);
+    border:1px solid var(--c-line);
+  }
+  .hdr-status.is-connected{ background:var(--accent-idle-soft); color:var(--accent-idle); border-color:transparent; }
+  .hdr-status.is-error{ background:rgba(255,93,108,.14); color:var(--c-rose, #ff6b81); border-color:transparent; }
+
+  .field-label{
+    display:block; font-size:11.5px; font-weight:600; color:var(--c-fog);
+    margin:12px 0 6px; text-transform:uppercase; letter-spacing:.04em;
+  }
+  .field-label:first-of-type{ margin-top:2px; }
+  .mono-input{ font-family:var(--font-mono); font-size:12.5px !important; }
+
+  .hdr-connect-actions{ display:flex; gap:10px; margin-top:16px; }
+  .hdr-security-note{ margin-top:14px; font-size:12px; line-height:1.6; }
+
+  .hdr-rows-head{ display:flex; align-items:center; justify-content:space-between; margin:16px 0 8px; }
+  .hdr-rows-head span{ font-size:11.5px; font-weight:600; color:var(--c-fog); text-transform:uppercase; letter-spacing:.04em; }
+  .hdr-row{ display:flex; gap:8px; align-items:center; margin-bottom:8px; }
+  .hdr-row select{
+    flex:none; width:76px; background:var(--c-ink-2); border:1px solid var(--c-line);
+    border-radius:8px; color:var(--c-paper); font-size:12px; padding:8px 6px;
+  }
+  .hdr-row input{ flex:1; min-width:0; }
+  .hdr-row .hdr-row-remove{
+    flex:none; width:32px; height:32px; border:none; border-radius:8px; background:transparent;
+    color:var(--c-fog); display:flex; align-items:center; justify-content:center; font-size:16px;
+  }
+  .hdr-row .hdr-row-remove:hover{ background:rgba(255,93,108,.14); color:var(--c-rose, #ff6b81); }
+
+  .hdr-profile-card{
+    background:var(--c-ink-2); border:1px solid var(--c-line-soft); border-radius:var(--r-sm, 12px);
+    padding:14px 16px; margin-bottom:10px;
+  }
+  .hdr-profile-card.is-active{ border-color:var(--accent-idle); box-shadow:0 0 0 1px var(--accent-idle-soft); }
+  .hdr-pc-top{ display:flex; align-items:center; justify-content:space-between; gap:10px; }
+  .hdr-pc-name{ font-weight:700; font-size:14px; }
+  .hdr-pc-meta{ font-size:11.5px; color:var(--c-fog); margin-top:3px; }
+  .hdr-pc-toggle{
+    padding:7px 14px; border-radius:999px; border:1px solid var(--c-line); background:var(--c-ink);
+    color:var(--c-mist); font-size:12px; font-weight:600; flex:none;
+    transition:background .2s var(--ease), color .2s var(--ease), border-color .2s var(--ease);
+  }
+  .hdr-pc-toggle.is-on{ background:var(--accent-idle); color:#fff; border-color:transparent; }
+  .hdr-pc-toggle:disabled{ opacity:.4; cursor:not-allowed; }
+  .hdr-pc-locked{ font-size:11.5px; color:var(--c-fog); margin-top:8px; display:flex; align-items:center; gap:6px; }
+  .hdr-pc-locked svg{ width:13px; height:13px; flex:none; }
 
   /* ========================================================================
      SESSION / PLAN LIST ROWS
@@ -637,7 +787,12 @@
     animation: rowIn .3s var(--ease);
   }
   .session-row:last-child{ border-bottom:none; }
-  .dot{ width:9px; height:9px; border-radius:50%; flex:none; }
+  .dot{
+    width:9px; height:9px; border-radius:50%; flex:none;
+    box-shadow:
+      0 0 0 3px color-mix(in srgb, currentColor 16%, transparent),
+      0 0 7px 1px color-mix(in srgb, currentColor 50%, transparent);
+  }
   .row-main{ flex:1; min-width:0; }
   .row-time{ font-size:14px; color:var(--c-paper); }
   .row-sub{ font-size:12px; color:var(--c-fog); margin-top:2px; font-family:var(--font-mono); }
@@ -647,7 +802,7 @@
     flex:1.2; min-width:0; background:transparent; border:none; color:var(--c-mist);
     font-size:13px; text-align:right; padding:6px 4px;
   }
-  .row-notes::placeholder{ color:var(--c-line); }
+  .row-notes::placeholder{ color:var(--c-fog); }
   .row-actions{ display:flex; gap:4px; flex:none; }
   .row-icon-btn{
     width:28px; height:28px; border:none; background:none; color:var(--c-fog);
@@ -1454,10 +1609,12 @@
        built the cheap way already (gradient-baked softness, transform +
        opacity only, no filter:blur), so there's no frame-budget reason to
        turn it off on mobile. */
-    .practice-stage{ min-height:min(480px, 62vh); padding:28px 16px; gap:22px; }
+    .practice-stage{ min-height:min(560px, 68vh); padding:28px 16px; gap:20px; }
     .practice-tap{ width:172px; height:172px; }
     .practice-count{ font-size:44px; }
     .practice-tap-hint{ font-size:9.5px; }
+    .orbit-ring{ width:150px; height:150px; }
+    .orbit-time{ font-size:19px; }
 
     /* ---- STAT CARDS: same glass depth as panels --------------------------*/
     .stat-cards{ grid-template-columns:repeat(2,1fr); gap:10px; }
@@ -1659,6 +1816,9 @@
       <button class="rail-btn" data-view="practice" title="Practice">
         <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="9"/><path d="M8.5 12.5l2.3 2.3L16 10"/></svg>
       </button>
+      <button class="rail-btn" data-view="headers" title="Headers">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="5" width="18" height="14" rx="2"/><path d="M3 10h18"/><path d="M7 14.5h4"/></svg>
+      </button>
       <button class="rail-btn" data-view="settings" title="Settings">
         <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="3"/><path d="M19.4 13a7.97 7.97 0 0 0 0-2l1.8-1.4-2-3.4-2.1.6a8 8 0 0 0-1.7-1l-.3-2.2H9.9l-.3 2.2a8 8 0 0 0-1.7 1l-2.1-.6-2 3.4L5.6 11a7.97 7.97 0 0 0 0 2l-1.8 1.4 2 3.4 2.1-.6c.5.4 1.1.75 1.7 1l.3 2.2h4.2l.3-2.2a8 8 0 0 0 1.7-1l2.1.6 2-3.4L19.4 13z"/></svg>
       </button>
@@ -1843,12 +2003,85 @@
           <div class="practice-orb practice-orb-b" aria-hidden="true"></div>
           <div class="practice-orb practice-orb-c" aria-hidden="true"></div>
 
-          <button class="practice-tap" id="practiceTap" type="button" title="Tap every time you solve a question">
-            <span class="practice-count" id="practiceCount">0</span>
-            <span class="practice-tap-hint">tap when<br>you solve one</span>
-          </button>
+          <div class="orbit-ring">
+            <div class="orbit-track"></div>
+            <div class="orbit-arm orbit-arm-a"><div class="orbit-dot orbit-dot-a"></div></div>
+            <div class="orbit-arm orbit-arm-b"><div class="orbit-dot orbit-dot-b"></div></div>
+            <div class="orbit-center">
+              <span class="orbit-time" id="practiceTimerText">00:00</span>
+              <span class="orbit-label" id="practiceTimerLabel">Idle</span>
+            </div>
+          </div>
+
+          <div class="practice-tap-wrap">
+            <button class="practice-tap" id="practiceTap" type="button" title="Tap every time you solve a question">
+              <span class="practice-count" id="practiceCount">0</span>
+              <span class="practice-tap-hint">tap when<br>you solve one</span>
+            </button>
+          </div>
 
           <p class="practice-alltime">All-time <span id="practiceAllStat">0</span></p>
+        </div>
+      </section>
+
+      <!-- ============================== HEADERS ============================== -->
+      <section class="view" data-view="headers">
+        <header class="view-head">
+          <div><p class="eyebrow">Extension</p><h1>Headers</h1></div>
+          <span class="hdr-status" id="hdrStatusPill">Not connected</span>
+        </header>
+
+        <div class="panel" id="hdrNoExtPanel">
+          <h2>Chrome extension required</h2>
+          <p class="muted">This tab remotely controls the <strong>StudyTrack Headers</strong> companion extension — it can't do anything without it installed, and it only works on desktop Chrome (extensions aren't supported on mobile browsers).</p>
+        </div>
+
+        <div class="panel" id="hdrConnectPanel">
+          <h2>Connect</h2>
+          <p class="muted">Both values come from the extension's own popup — open it, click the link icon, and copy them here.</p>
+          <label class="field-label" for="hdrExtId">Extension ID</label>
+          <input type="text" id="hdrExtId" class="text-input mono-input" placeholder="e.g. pfbdjkmhpenmlfanmdckdpdiepienlkb">
+          <label class="field-label" for="hdrToken">Pairing token</label>
+          <input type="text" id="hdrToken" class="text-input mono-input" placeholder="paste the token from the extension">
+          <div class="hdr-connect-actions">
+            <button class="btn-secondary" id="btnHdrConnect">Connect</button>
+            <button class="btn-ghost" id="btnHdrForget">Forget</button>
+          </div>
+          <p class="muted hdr-security-note">StudyTrack can only ever see profile names and on/off state, and can only toggle profiles you've explicitly allowed from inside the extension. It can never read or set header values.</p>
+        </div>
+
+        <div class="panel" id="hdrProfilesPanel" style="display:none">
+          <div class="panel-head">
+            <h2>Profiles</h2>
+            <button class="icon-btn" id="btnHdrRefresh" title="Refresh">
+              <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M3 12a9 9 0 1 0 3-6.7"/><path d="M3 4v5h5"/></svg>
+            </button>
+          </div>
+          <div id="hdrProfilesList"></div>
+          <p class="muted" id="hdrProfilesEmpty" style="display:none">No profiles yet — create one in the extension, or propose one below.</p>
+        </div>
+
+        <div class="panel" id="hdrProposePanel" style="display:none">
+          <div class="panel-head">
+            <h2>Propose a new profile</h2>
+            <button class="btn-secondary" id="btnHdrNewProposal">+ New</button>
+          </div>
+          <p class="muted">This only queues a suggestion — nothing is created or applied until you approve it inside the extension.</p>
+          <div id="hdrProposeForm" style="display:none">
+            <label class="field-label" for="hdrPropName">Name</label>
+            <input type="text" id="hdrPropName" class="text-input" placeholder="e.g. Fake mobile UA">
+            <label class="field-label" for="hdrPropScope">Applies to (URL filter)</label>
+            <input type="text" id="hdrPropScope" class="text-input mono-input" placeholder="* for everywhere">
+            <div class="hdr-rows-head">
+              <span>Header rows</span>
+              <button class="btn-ghost btn-sm" id="btnHdrAddRow">+ Row</button>
+            </div>
+            <div id="hdrRows"></div>
+            <div class="hdr-connect-actions">
+              <button class="btn-ghost" id="btnHdrCancelProposal">Cancel</button>
+              <button class="btn-secondary" id="btnHdrSendProposal">Send for approval</button>
+            </div>
+          </div>
         </div>
       </section>
 
@@ -2324,6 +2557,27 @@
     if(_reverb){
       const wet = ctx.createGain(); wet.gain.value = 0.45;
       lp.connect(wet); wet.connect(_reverb); _reverb.connect(ctx.destination);
+    }
+
+    // Short, bright, percussive — for rapid-fire taps that shouldn't smear
+    // together the way the long airy start/stop chime would.
+    if(kind === "tap" || kind === "milestone"){
+      const notes = kind === "milestone" ? [523.25, 659.25, 783.99, 1046.50] : [880];
+      notes.forEach(function(f, i){
+        const t = now + i * (kind === "milestone" ? 0.06 : 0);
+        const peak = kind === "milestone" ? 0.20 : 0.14;
+        const dur = kind === "milestone" ? 0.45 : 0.16;
+        const osc = ctx.createOscillator();
+        osc.type = "sine";
+        osc.frequency.setValueAtTime(f, t);
+        const g = ctx.createGain();
+        g.gain.setValueAtTime(0.0001, t);
+        g.gain.exponentialRampToValueAtTime(peak, t + 0.008);
+        g.gain.exponentialRampToValueAtTime(0.0001, t + dur);
+        osc.connect(g); g.connect(lp);
+        osc.start(t); osc.stop(t + dur + 0.05);
+      });
+      return;
     }
 
     const root = 396;            // warm, soft fundamental
@@ -2809,6 +3063,7 @@
     if(view === "stats") renderStats();
     if(view === "settings") renderSettings();
     if(view === "practice") refreshPracticeView();
+    if(view === "headers") refreshHeadersView();
     // scroll the stage back to the top on every view change (mobile & desktop)
     var stageEl = document.querySelector(".stage");
     if(stageEl) stageEl.scrollTop = 0;
@@ -2869,18 +3124,58 @@
     ripple.addEventListener("animationend", function(){ ripple.remove(); });
   }
 
+  // Particles fly OUTSIDE the button's circular edge, so they're appended
+  // to the (unclipped) wrapper rather than the button itself — only the
+  // ripple above needs the button's own overflow:hidden to stay contained.
+  function spawnPracticeBurst(wrap, milestone){
+    const w = wrap.clientWidth, h = wrap.clientHeight;
+    const cx = w/2, cy = h/2;
+    const count = milestone ? 16 : 8;
+    for(let i=0;i<count;i++){
+      const p = document.createElement("span");
+      p.className = "practice-particle" + (milestone ? " is-milestone" : "");
+      p.style.left = cx + "px";
+      p.style.top = cy + "px";
+      const angle = (Math.PI*2*i/count) + (Math.random()*0.5 - 0.25);
+      const dist = milestone ? (75 + Math.random()*45) : (42 + Math.random()*26);
+      p.style.setProperty("--dx", (Math.cos(angle)*dist).toFixed(1) + "px");
+      p.style.setProperty("--dy", (Math.sin(angle)*dist).toFixed(1) + "px");
+      wrap.appendChild(p);
+      p.addEventListener("animationend", function(){ p.remove(); });
+    }
+  }
+  function spawnStreakPop(wrap, text){
+    const pop = document.createElement("span");
+    pop.className = "practice-streak-pop";
+    pop.textContent = text;
+    wrap.appendChild(pop);
+    pop.addEventListener("animationend", function(){ pop.remove(); });
+  }
+
   const practiceTapBtn = document.getElementById("practiceTap");
   const practiceCountEl = document.getElementById("practiceCount");
+  const practiceTapWrap = practiceTapBtn ? practiceTapBtn.parentElement : null;
   if(practiceTapBtn){
     practiceTapBtn.addEventListener("click", function(e){
       practiceToday++; practiceAllTime++;
       savePracticeState();
       updatePracticeUI();
+
+      const isMilestone = practiceToday > 0 && practiceToday % 10 === 0;
+      playTone(isMilestone ? "milestone" : "tap");
       spawnPracticeRipple(e, practiceTapBtn);
+      if(practiceTapWrap) spawnPracticeBurst(practiceTapWrap, isMilestone);
+      if(isMilestone && practiceTapWrap) spawnStreakPop(practiceTapWrap, "🔥 " + practiceToday + " today");
+      if(isMilestone){
+        practiceTapBtn.classList.remove("is-milestone");
+        void practiceTapBtn.offsetWidth; // restart the pulse if it's already mid-animation
+        practiceTapBtn.classList.add("is-milestone");
+      }
+
       if(practiceCountEl && practiceCountEl.animate){
         practiceCountEl.animate(
-          [{ transform:"scale(1)" }, { transform:"scale(1.24)" }, { transform:"scale(1)" }],
-          { duration:360, easing:"cubic-bezier(.34,1.56,.64,1)" }
+          [{ transform:"scale(1)" }, { transform:"scale(" + (isMilestone ? 1.4 : 1.24) + ")" }, { transform:"scale(1)" }],
+          { duration: isMilestone ? 480 : 360, easing:"cubic-bezier(.34,1.56,.64,1)" }
         );
       }
       if(practiceTapBtn.animate){
@@ -2903,6 +3198,213 @@
   }
 
   refreshPracticeView();
+
+  /* ======================================================================
+     HEADERS — remote control for the companion Chrome extension.
+     This code only ever: reads connection settings from localStorage,
+     queries the extension for status, and sends the small allow-listed
+     commands (activate / deactivate / propose-profile). It never stores
+     or transmits actual header values as a "command" the extension has
+     to trust — see the extension's background.js for the other half of
+     this boundary.
+     =================================================================== */
+  const HDR_KEY = "studytrack.headers.connection";
+  let hdrExtId = "";
+  let hdrToken = "";
+
+  function loadHdrConnection(){
+    let raw = null;
+    try{ raw = JSON.parse(localStorage.getItem(HDR_KEY) || "null"); }catch(e){}
+    hdrExtId = (raw && raw.extId) || "";
+    hdrToken = (raw && raw.token) || "";
+  }
+  function saveHdrConnection(){
+    try{ localStorage.setItem(HDR_KEY, JSON.stringify({ extId: hdrExtId, token: hdrToken })); }catch(e){}
+  }
+  function hdrExtApiAvailable(){
+    return typeof chrome !== "undefined" && chrome.runtime && typeof chrome.runtime.sendMessage === "function";
+  }
+  function hdrSend(msg){
+    return new Promise(function(resolve){
+      if(!hdrExtApiAvailable() || !hdrExtId){ resolve({ ok:false, error:"no-extension" }); return; }
+      try{
+        chrome.runtime.sendMessage(hdrExtId, Object.assign({ token: hdrToken }, msg), function(response){
+          if(chrome.runtime.lastError){ resolve({ ok:false, error: chrome.runtime.lastError.message }); return; }
+          resolve(response || { ok:false, error:"empty-response" });
+        });
+      }catch(e){ resolve({ ok:false, error: e.message }); }
+    });
+  }
+
+  const hdrEls = {
+    statusPill: document.getElementById("hdrStatusPill"),
+    noExtPanel: document.getElementById("hdrNoExtPanel"),
+    connectPanel: document.getElementById("hdrConnectPanel"),
+    profilesPanel: document.getElementById("hdrProfilesPanel"),
+    proposePanel: document.getElementById("hdrProposePanel"),
+    extIdInput: document.getElementById("hdrExtId"),
+    tokenInput: document.getElementById("hdrToken"),
+    profilesList: document.getElementById("hdrProfilesList"),
+    profilesEmpty: document.getElementById("hdrProfilesEmpty"),
+    proposeForm: document.getElementById("hdrProposeForm"),
+    rows: document.getElementById("hdrRows")
+  };
+
+  function setHdrStatus(kind, text){
+    if(!hdrEls.statusPill) return;
+    hdrEls.statusPill.textContent = text;
+    hdrEls.statusPill.className = "hdr-status" + (kind === "connected" ? " is-connected" : kind === "error" ? " is-error" : "");
+  }
+
+  async function refreshHeadersView(){
+    if(!hdrEls.statusPill) return; // view not in DOM yet on first paint
+    if(!hdrExtApiAvailable()){
+      hdrEls.noExtPanel.style.display = "";
+      hdrEls.connectPanel.style.display = "none";
+      hdrEls.profilesPanel.style.display = "none";
+      hdrEls.proposePanel.style.display = "none";
+      setHdrStatus("none", "Extension not detected");
+      return;
+    }
+    hdrEls.noExtPanel.style.display = "none";
+    hdrEls.connectPanel.style.display = "";
+
+    if(!hdrExtId || !hdrToken){
+      setHdrStatus("none", "Not connected");
+      hdrEls.profilesPanel.style.display = "none";
+      hdrEls.proposePanel.style.display = "none";
+      return;
+    }
+
+    const r = await hdrSend({ type: "get-status" });
+    if(!r.ok){
+      setHdrStatus("error", r.error === "not-paired" ? "Token rejected" : "Can't reach extension");
+      hdrEls.profilesPanel.style.display = "none";
+      hdrEls.proposePanel.style.display = "none";
+      return;
+    }
+    setHdrStatus("connected", "Connected" + (r.pendingCount ? " · " + r.pendingCount + " pending" : ""));
+    hdrEls.profilesPanel.style.display = "";
+    hdrEls.proposePanel.style.display = "";
+    renderHdrProfiles(r.profiles || []);
+  }
+
+  function renderHdrProfiles(profiles){
+    hdrEls.profilesEmpty.style.display = profiles.length ? "none" : "";
+    hdrEls.profilesList.innerHTML = profiles.map(function(p){
+      const lockedHint = !p.remoteAllowed ? (
+        '<div class="hdr-pc-locked">' +
+          '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="4" y="10" width="16" height="10" rx="2"/><path d="M8 10V7a4 4 0 0 1 8 0v3"/></svg>' +
+          'Enable &quot;Allow StudyTrack to toggle this&quot; in the extension popup' +
+        '</div>'
+      ) : "";
+      return (
+        '<div class="hdr-profile-card' + (p.active ? " is-active" : "") + '" data-id="' + p.id + '">' +
+          '<div class="hdr-pc-top">' +
+            '<div><div class="hdr-pc-name">' + escapeHtml(p.name) + '</div>' +
+            '<div class="hdr-pc-meta">' + (p.active ? "Active" : "Inactive") + '</div></div>' +
+            '<button class="hdr-pc-toggle' + (p.active ? " is-on" : "") + '"' + (p.remoteAllowed ? "" : " disabled") + '>' + (p.active ? "On" : "Off") + '</button>' +
+          '</div>' +
+          lockedHint +
+        '</div>'
+      );
+    }).join("");
+
+    hdrEls.profilesList.querySelectorAll(".hdr-pc-toggle").forEach(function(btn){
+      btn.addEventListener("click", async function(){
+        const card = btn.closest(".hdr-profile-card");
+        const id = card.dataset.id;
+        const turningOn = !btn.classList.contains("is-on");
+        btn.disabled = true;
+        const r = turningOn
+          ? await hdrSend({ type:"request-activate", profileId:id })
+          : await hdrSend({ type:"request-deactivate" });
+        if(r.ok) toast(turningOn ? "Profile activated" : "Profile deactivated");
+        else toast("Couldn't do that: " + (r.error || "unknown error"));
+        refreshHeadersView();
+      });
+    });
+  }
+
+  const btnHdrConnect = document.getElementById("btnHdrConnect");
+  if(btnHdrConnect) btnHdrConnect.addEventListener("click", async function(){
+    hdrExtId = hdrEls.extIdInput.value.trim();
+    hdrToken = hdrEls.tokenInput.value.trim();
+    saveHdrConnection();
+    await refreshHeadersView();
+  });
+  const btnHdrForget = document.getElementById("btnHdrForget");
+  if(btnHdrForget) btnHdrForget.addEventListener("click", function(){
+    hdrExtId = ""; hdrToken = "";
+    saveHdrConnection();
+    hdrEls.extIdInput.value = ""; hdrEls.tokenInput.value = "";
+    refreshHeadersView();
+  });
+  const btnHdrRefresh = document.getElementById("btnHdrRefresh");
+  if(btnHdrRefresh) btnHdrRefresh.addEventListener("click", refreshHeadersView);
+
+  /* ---- propose form ------------------------------------------------- */
+  function hdrAddRow(h){
+    h = h || { type:"request", name:"", value:"" };
+    const row = document.createElement("div");
+    row.className = "hdr-row";
+    row.innerHTML =
+      '<select class="hdr-row-type">' +
+        '<option value="request"' + (h.type!=="response"?" selected":"") + '>Request</option>' +
+        '<option value="response"' + (h.type==="response"?" selected":"") + '>Response</option>' +
+      '</select>' +
+      '<input type="text" class="text-input mono-input hdr-row-name" placeholder="Header-Name" value="'+escapeHtml(h.name)+'">' +
+      '<input type="text" class="text-input mono-input hdr-row-value" placeholder="value" value="'+escapeHtml(h.value)+'">' +
+      '<button type="button" class="hdr-row-remove">&times;</button>';
+    row.querySelector(".hdr-row-remove").addEventListener("click", function(){ row.remove(); });
+    hdrEls.rows.appendChild(row);
+  }
+
+  const btnHdrNewProposal = document.getElementById("btnHdrNewProposal");
+  if(btnHdrNewProposal) btnHdrNewProposal.addEventListener("click", function(){
+    hdrEls.proposeForm.style.display = "";
+    hdrEls.rows.innerHTML = "";
+    document.getElementById("hdrPropName").value = "";
+    document.getElementById("hdrPropScope").value = "*";
+    hdrAddRow();
+  });
+  const btnHdrCancelProposal = document.getElementById("btnHdrCancelProposal");
+  if(btnHdrCancelProposal) btnHdrCancelProposal.addEventListener("click", function(){
+    hdrEls.proposeForm.style.display = "none";
+  });
+  const btnHdrAddRow = document.getElementById("btnHdrAddRow");
+  if(btnHdrAddRow) btnHdrAddRow.addEventListener("click", function(){ hdrAddRow(); });
+
+  const btnHdrSendProposal = document.getElementById("btnHdrSendProposal");
+  if(btnHdrSendProposal) btnHdrSendProposal.addEventListener("click", async function(){
+    const name = document.getElementById("hdrPropName").value.trim();
+    if(!name){ document.getElementById("hdrPropName").focus(); return; }
+    const headers = Array.from(hdrEls.rows.querySelectorAll(".hdr-row")).map(function(row){
+      return {
+        type: row.querySelector(".hdr-row-type").value,
+        name: row.querySelector(".hdr-row-name").value.trim(),
+        value: row.querySelector(".hdr-row-value").value,
+        enabled: true
+      };
+    }).filter(function(h){ return h.name; });
+    if(!headers.length){ toast("Add at least one header row"); return; }
+
+    const r = await hdrSend({
+      type: "propose-profile",
+      profile: { name: name, scope: document.getElementById("hdrPropScope").value.trim() || "*", headers: headers }
+    });
+    if(r.ok){
+      toast("Sent — approve it in the extension to activate");
+      hdrEls.proposeForm.style.display = "none";
+      refreshHeadersView();
+    } else {
+      toast("Couldn't send proposal: " + (r.error || "unknown error"));
+    }
+  });
+
+  loadHdrConnection();
+  if(hdrEls.extIdInput) hdrEls.extIdInput.value = hdrExtId;
+  if(hdrEls.tokenInput) hdrEls.tokenInput.value = hdrToken;
 
   /* ---- the glowing pill that glides beneath the active dock tab -------- */
   function moveDockGlow(){
@@ -2962,6 +3464,11 @@
   const tmCenti = document.getElementById("tmCenti");
   const btnStartStop = document.getElementById("btnStartStop");
   const btnStartStopLabel = document.getElementById("btnStartStopLabel");
+  // The Practice tab's orbit-ring mirrors the same running timer — updated
+  // on the same once-a-second cadence as the Today label below (it doesn't
+  // need centisecond precision), so it costs nothing extra per tick.
+  const practiceTimerTextEl = document.getElementById("practiceTimerText");
+  const practiceTimerLabelEl = document.getElementById("practiceTimerLabel");
 
   // Cached so tickDisplay (running up to 20×/sec) never has to re-filter
   // the whole sessions array or allocate a new Date just to refresh a
@@ -2991,11 +3498,13 @@
       _todayLabelSecond = s;
       const combinedSec = _todaySavedSecCache + Math.floor(totalSec);
       timerTodayEl.textContent = "Today: " + minutesToLabel(combinedSec / 60);
+      if(practiceTimerTextEl) practiceTimerTextEl.textContent = h>0 ? (pad(h)+":"+pad(m)+":"+pad(s)) : (pad(m)+":"+pad(s));
     }
   }
   function resetDisplay(){
     tmHMS.textContent = "00:00";
     tmCenti.textContent = ".00";
+    if(practiceTimerTextEl) practiceTimerTextEl.textContent = "00:00";
   }
 
   /* ---- "Timer running" notification (best effort) ----------------------
@@ -3052,6 +3561,7 @@
     _todayLabelSecond = -1;
     document.body.classList.add("running");
     btnStartStopLabel.textContent = "Stop";
+    if(practiceTimerLabelEl) practiceTimerLabelEl.textContent = "Running";
     clearInterval(timerInterval);
     timerInterval = setInterval(tickDisplay, 50);
     tickDisplay();
@@ -3065,6 +3575,7 @@
     timerRunning = false;
     document.body.classList.remove("running");
     btnStartStopLabel.textContent = "Start";
+    if(practiceTimerLabelEl) practiceTimerLabelEl.textContent = "Idle";
     resetDisplay();
     clearRunningTimer();
     stopTimerNotification();
@@ -3136,6 +3647,7 @@
     const dot = document.createElement("span");
     dot.className = "dot";
     dot.style.background = sessionDotColor(session);
+    dot.style.color = sessionDotColor(session);
     row.appendChild(dot);
 
     const main = document.createElement("div");
@@ -3173,6 +3685,7 @@
       tagChip.appendChild(cd); tagChip.appendChild(nm);
       // dot follows the tag colour (falls back to the notes-hash when untagged)
       dot.style.background = sessionDotColor(session);
+      dot.style.color = sessionDotColor(session);
     }
     refreshTagUI();
     tagChip.addEventListener("click", function(){ openTagPicker(session, refreshTagUI); });
@@ -3192,7 +3705,9 @@
       if(s) s.notes = notesInput.value;
       // keep the tag colour if one is set, otherwise reflect the notes hash
       const t = sessionTag(session);
-      dot.style.background = t ? t.color : subjectColor(notesInput.value);
+      const liveColor = t ? t.color : subjectColor(notesInput.value);
+      dot.style.background = liveColor;
+      dot.style.color = liveColor;
     });
     // Sync only once you're done \u2014 when the field loses focus (or you press Enter).
     let notesAtFocus = notesInput.value;
@@ -3884,6 +4399,7 @@
       const dot = document.createElement("span");
       dot.className = "dot";
       dot.style.background = color;
+      dot.style.color = color;
       const name = document.createElement("span");
       name.className = "lr-name";
       name.textContent = d.name;
@@ -3961,7 +4477,8 @@
     window.addEventListener("resize", resize);
 
     // Hues we slowly travel through to keep the whole thing feeling "alive".
-    const HUES = [232, 258, 286, 156, 188]; // indigo -> violet -> magenta -> mint -> cyan
+    // Added a warm gold stop so the cycle isn't cool-only end to end.
+    const HUES = [232, 258, 286, 156, 188, 40]; // indigo -> violet -> magenta -> mint -> cyan -> gold
 
     // Fine drifting particles (subtle dust/sparkle, NOT party balloons).
     const PCOUNT = window.innerWidth < 640 ? 36 : 58;
@@ -3981,6 +4498,7 @@
 
     const RIBBONS = 5;
     let t = 0;
+    let shootingStar = null; // rare occasional flourish — see bottom of draw()
 
     function draw(){
       aliveRAF = requestAnimationFrame(draw);
@@ -3998,7 +4516,6 @@
 
       // ---- breathing, flowing ribbon lines (the clean moving lines) -------
       ctx.globalCompositeOperation = light ? "multiply" : "screen";
-      ctx.lineWidth = 1.4;
       for(let r = 0; r < RIBBONS; r++){
         const yBase = H * (0.16 + r * 0.165);
         // amplitude itself breathes in and out
@@ -4007,7 +4524,11 @@
         const lineHue = baseHue + r * 13;
         const sat = light ? 58 : 72;
         const lum = light ? 60 : 60;
-        const alpha = light ? 0.11 : 0.15;
+        // depth cue: ribbons up front (low r) read slightly thicker & brighter,
+        // ones further back thin out and fade — same line count, more dimension.
+        const depth = 1 - r * 0.14;
+        ctx.lineWidth = (light ? 1.2 : 1.5) * depth + 0.3;
+        const alpha = (light ? 0.11 : 0.15) * (0.75 + 0.45 * depth);
 
         ctx.beginPath();
         for(let x = 0; x <= W; x += 8){
@@ -4053,6 +4574,47 @@
         ctx.fillStyle = "hsla(" + ph + "," + s + "%," + l + "%," + a + ")";
         ctx.fill();
       });
+
+      // ---- rare shooting star (a small surprise, not a recurring gimmick) -
+      if(!shootingStar && Math.random() < 0.0012){
+        const fromLeft = Math.random() < 0.5;
+        const vx = (fromLeft ? 1 : -1) * (7 + Math.random() * 4);
+        const vy = 2.2 + Math.random() * 1.6;
+        shootingStar = {
+          x: fromLeft ? -60 : W + 60,
+          y: H * (0.05 + Math.random() * 0.35),
+          vx: vx, vy: vy,
+          speed: Math.sqrt(vx*vx + vy*vy),
+          life: 0, maxLife: 70,
+          hue: baseHue + (Math.random() * 30 - 15)
+        };
+      }
+      if(shootingStar){
+        const st = shootingStar;
+        st.x += st.vx; st.y += st.vy; st.life++;
+        const fade = 1 - (st.life / st.maxLife);
+        if(fade > 0 && st.x > -80 && st.x < W + 80 && st.y < H + 80){
+          ctx.globalCompositeOperation = "screen";
+          const ux = st.vx / st.speed, uy = st.vy / st.speed, tailLen = 90;
+          const tx = st.x - ux * tailLen, ty = st.y - uy * tailLen;
+          const grad = ctx.createLinearGradient(tx, ty, st.x, st.y);
+          grad.addColorStop(0, "hsla(" + st.hue + ",80%,80%,0)");
+          grad.addColorStop(1, "hsla(" + st.hue + ",80%,88%," + (0.55 * fade) + ")");
+          ctx.strokeStyle = grad;
+          ctx.lineWidth = 1.6;
+          ctx.beginPath();
+          ctx.moveTo(tx, ty);
+          ctx.lineTo(st.x, st.y);
+          ctx.stroke();
+          ctx.beginPath();
+          ctx.arc(st.x, st.y, 1.6, 0, Math.PI * 2);
+          ctx.fillStyle = "hsla(" + st.hue + ",70%,92%," + (0.9 * fade) + ")";
+          ctx.fill();
+        } else {
+          shootingStar = null;
+        }
+        if(shootingStar && shootingStar.life >= shootingStar.maxLife) shootingStar = null;
+      }
 
       ctx.globalCompositeOperation = "source-over";
     }
