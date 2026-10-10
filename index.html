@@ -1759,6 +1759,317 @@
   @media (max-width: 880px){
     body.theme-alive .view{ padding-bottom:2px; }
   }
+
+  /* ========================================================================
+     PAUSE · BACK-START · MOVE-DAY
+     One motion language for all three:
+       --ease        the app's existing ease-out (things arriving)
+       --ease-soft   symmetrical, for things that breathe
+       --ease-spring tiny overshoot, for things that land
+     Everything that loops animates transform/opacity only (cheap on phones).
+     ===================================================================== */
+  :root{
+    --ease-soft: cubic-bezier(.65,0,.35,1);
+    --ease-spring: cubic-bezier(.34,1.45,.5,1);
+    --aur-mint:#5fe3c6; --aur-sky:#79b8ff; --aur-lilac:#b49bff; --aur-rose:#ffb9dc;
+  }
+
+  /* ---- the record button becomes a small system: orb + fx + hold ring ---- */
+  .record-wrap{
+    position:relative; display:grid; place-items:center;
+    --rw-w:min(calc(100vw - 48px), 400px);
+  }
+  .record-wrap > *{ grid-area:1 / 1; }
+  .record-wrap > .btn-record{ justify-self:center; align-self:center; }
+
+  .btn-record{
+    border-radius:9999px;
+    touch-action:none; -webkit-user-select:none; user-select:none; -webkit-touch-callout:none;
+    transition:background .6s var(--ease), box-shadow .6s var(--ease), transform .15s var(--ease),
+               width .56s var(--ease), height .56s var(--ease);
+  }
+  .btn-record .btn-record-dot,
+  .btn-record #btnStartStopLabel{
+    transition:opacity .26s var(--ease), transform .34s var(--ease), border-radius .3s var(--ease);
+  }
+
+  /* invisible twin of the orb: keeps the grid cell orb-sized while the real
+     button stretches into the dial, and carries the hold ring + ripples */
+  .btn-record.orb-fx{
+    pointer-events:none; background:none !important; box-shadow:none !important;
+    animation:none !important; overflow:visible !important; transition:none !important;
+    border-radius:50%;
+  }
+  .btn-record.orb-fx::before, .btn-record.orb-fx::after{ display:none !important; }
+
+  .hold-ring{
+    position:absolute; left:-15px; top:-15px; width:calc(100% + 30px); height:calc(100% + 30px);
+    transform:rotate(-90deg); overflow:visible; opacity:0;
+    transition:opacity .22s var(--ease);
+  }
+  .hold-ring circle{ fill:none; stroke-linecap:round; stroke-width:1.9; }
+  .hold-ring .hr-fg{
+    stroke:url(#holdGrad); stroke-dasharray:100; stroke-dashoffset:100;
+    transition:stroke-dashoffset .26s var(--ease);
+  }
+  .record-wrap.hk-rewind .hold-ring .hr-fg{ stroke:var(--accent-current); }
+  .record-wrap.holding .hold-ring{ opacity:1; transition-delay:.12s; }
+  .record-wrap.holding .hold-ring .hr-fg{
+    stroke-dashoffset:0; transition:stroke-dashoffset var(--hold-ms, 600ms) linear;
+  }
+  .record-wrap.holding .btn-record:not(.orb-fx){ transform:scale(.955); }
+
+  .fx-ripple{
+    position:absolute; left:-4px; top:-4px; right:-4px; bottom:-4px; border-radius:50%;
+    border:1.5px solid color-mix(in srgb, var(--aur-mint) 75%, var(--aur-sky));
+    opacity:0; pointer-events:none; will-change:transform, opacity;
+  }
+  .fx-ripple.r2{ border-color:color-mix(in srgb, var(--aur-lilac) 75%, var(--aur-sky)); }
+  body.paused .fx-ripple{ animation:pauseRipple 5.4s var(--ease-soft) infinite; }
+  body.paused .fx-ripple.r2{ animation-delay:2.7s; }
+  @keyframes pauseRipple{
+    0%  { opacity:0;   transform:scale(.94); }
+    16% { opacity:.85; }
+    100%{ opacity:0;   transform:scale(1.85); }
+  }
+
+  /* gesture hint under the orb */
+  .record-hint{
+    margin-top:16px; min-height:17px; font-size:12px; color:var(--c-fog); text-align:center;
+    transition:opacity .2s var(--ease), transform .2s var(--ease), color .6s var(--ease);
+  }
+  .record-hint.is-out{ opacity:0; transform:translateY(3px); }
+  body.paused .record-hint{ color:var(--c-mist); }
+
+  /* the "Today / Paused / Started at" line swaps with a soft rise */
+  .timer-today.swap{ animation:todaySwap .4s var(--ease); }
+  @keyframes todaySwap{ from{ opacity:0; transform:translateY(4px); } to{ opacity:1; transform:translateY(0); } }
+
+  /* ---- orb: aurora disc + pause glyph --------------------------------- */
+  .btn-record .orb-aurora{
+    position:absolute; left:-30%; top:-30%; right:-30%; bottom:-30%; z-index:0; border-radius:50%;
+    background:conic-gradient(from 0deg, #6ff0d0, #7db9ff, #b9a2ff, #ffc0e2, #6ff0d0);
+    opacity:0; transition:opacity .9s var(--ease); pointer-events:none; will-change:transform;
+  }
+  body.paused .btn-record .orb-aurora{ opacity:.9; animation:orbSpin 18s linear infinite; }
+  @keyframes orbSpin{ to{ transform:rotate(360deg); } }
+
+  body.paused .btn-record{ animation:none; color:#08202c; }
+  body.paused .btn-record-dot{
+    width:15px; height:17px; border-radius:3px; animation:none; box-shadow:none;
+    background:linear-gradient(90deg, rgba(8,32,44,.78) 0 36%, transparent 36% 64%, rgba(8,32,44,.78) 64% 100%);
+  }
+  body .btn-record.arrive{ animation:orbArrive 1s var(--ease-spring) both; }
+  @keyframes orbArrive{ 0%{ transform:scale(.86); } 55%{ transform:scale(1.045); } 100%{ transform:scale(1); } }
+
+  /* ====================================================================
+     PAUSE MODE — "frost aurora"
+     The whole interface turns light. Tokens swap on <body>, so every panel,
+     input and label follows without per-element overrides.
+     ================================================================= */
+  body.paused{
+    --c-void:#e8f4f6; --c-ink:#ffffff; --c-ink-2:#f0f8fa;
+    --c-line:#d2e5ea; --c-line-soft:#dfeef2;
+    --c-fog:#7b929f; --c-mist:#46606f; --c-paper:#0f2230;
+    --accent-current:#25c7a6; --accent-current-soft:rgba(37,199,166,.26);
+    --alive-ground:none;
+  }
+  body.paused .panel{ background:rgba(255,255,255,.66); border-color:rgba(255,255,255,.85); }
+  body.paused .timer-today{ color:#0d8a76; font-weight:600; }
+  body.paused .timer-display{ animation:pauseBreathe 5.6s var(--ease-soft) infinite; }
+  @keyframes pauseBreathe{ 0%,100%{ opacity:1; } 50%{ opacity:.6; } }
+  body.paused .timer-centi{ opacity:.5; }
+  body.paused #aliveCanvas, body.paused .alive-breath{ opacity:0 !important; }
+
+  /* rail (desktop): pale glass, mesh dimmed to a whisper */
+  .rail{ transition:background .9s var(--ease); }
+  body.paused .rail{ background:#d9ecf1; }
+  body.paused #railCanvas{ opacity:.22; }
+  .rail #railCanvas{ transition:opacity .9s var(--ease); }
+  body.paused .rail-btn{ background:rgba(255,255,255,.62); box-shadow:0 0 14px 5px rgba(255,255,255,.55); }
+  body.paused .rail-btn:hover{ background:rgba(255,255,255,.92); }
+  body.paused .rail-btn.active{ background:color-mix(in srgb, var(--accent-idle-soft) 80%, rgba(255,255,255,.6) 20%); box-shadow:0 0 14px 5px rgba(255,255,255,.55); }
+  body.paused .rail-logo{ box-shadow:0 0 18px 8px rgba(255,255,255,.7), 0 6px 18px -6px var(--accent-idle-soft); }
+  body.paused .rail-pulse{ background:var(--aur-mint); box-shadow:0 0 10px 2px rgba(95,227,198,.55); animation:pausePulse 3.4s var(--ease-soft) infinite; }
+  @keyframes pausePulse{ 0%,100%{ opacity:1; } 50%{ opacity:.35; } }
+
+  /* the aurora itself: three big feathered blobs + soft vertical curtains */
+  .pause-aurora{
+    position:fixed; left:0; top:0; right:0; bottom:0; z-index:-1; pointer-events:none; overflow:hidden;
+    opacity:0; transition:opacity 1.3s var(--ease);
+  }
+  body.paused .pause-aurora{ opacity:1; }
+  .pa-blob{ position:absolute; border-radius:50%; will-change:transform, opacity; }
+  .pa-a{ width:110vmax; height:78vmax; left:-34vmax; top:-40vmax;
+    background:radial-gradient(closest-side, rgba(111,240,208,.70), rgba(111,240,208,0)); animation:paDriftA 27s var(--ease-soft) infinite alternate; }
+  .pa-b{ width:100vmax; height:78vmax; right:-40vmax; top:-16vmax;
+    background:radial-gradient(closest-side, rgba(125,185,255,.62), rgba(125,185,255,0)); animation:paDriftB 33s var(--ease-soft) infinite alternate; }
+  .pa-c{ width:112vmax; height:70vmax; left:-12vmax; bottom:-44vmax;
+    background:radial-gradient(closest-side, rgba(185,162,255,.58), rgba(185,162,255,0)); animation:paDriftC 38s var(--ease-soft) infinite alternate; }
+  .pa-d{ width:70vmax; height:50vmax; right:-24vmax; bottom:-24vmax;
+    background:radial-gradient(closest-side, rgba(255,185,220,.42), rgba(255,185,220,0)); animation:paDriftB 41s var(--ease-soft) infinite alternate-reverse; }
+  .pa-rays{
+    position:absolute; left:-10%; right:-10%; top:-6%; height:78%;
+    background:repeating-linear-gradient(90deg, rgba(255,255,255,0) 0 44px, rgba(255,255,255,.42) 62px, rgba(255,255,255,0) 92px, rgba(255,255,255,0) 150px);
+    -webkit-mask-image:linear-gradient(180deg, transparent 0%, #000 34%, #000 58%, transparent 100%);
+            mask-image:linear-gradient(180deg, transparent 0%, #000 34%, #000 58%, transparent 100%);
+    opacity:.5; will-change:transform, opacity; animation:paRays 19s var(--ease-soft) infinite alternate;
+  }
+  @keyframes paDriftA{ from{ transform:translate3d(0,0,0) scale(1);       opacity:.8; } to{ transform:translate3d(9vmax,5vmax,0) scale(1.14) rotate(8deg);  opacity:1; } }
+  @keyframes paDriftB{ from{ transform:translate3d(0,0,0) scale(1.06);    opacity:1;  } to{ transform:translate3d(-8vmax,6vmax,0) scale(.94) rotate(-9deg); opacity:.78; } }
+  @keyframes paDriftC{ from{ transform:translate3d(0,0,0) scale(.96);     opacity:.78;} to{ transform:translate3d(7vmax,-6vmax,0) scale(1.12) rotate(6deg); opacity:1; } }
+  @keyframes paRays{ from{ transform:translate3d(-3%,0,0); opacity:.34; } to{ transform:translate3d(3%,1.5%,0); opacity:.62; } }
+
+  /* the wave: a feathered disc that scales out from the orb */
+  .pause-wave{
+    position:fixed; left:0; top:0; width:640px; height:640px; margin:-320px 0 0 -320px;
+    border-radius:50%; z-index:55; pointer-events:none; opacity:0;
+    transform:translate(-2000px,-2000px) scale(0); will-change:transform, opacity;
+  }
+  .pause-wave.to-pause{
+    background:radial-gradient(circle closest-side, #f6fdfc 0%, #f1fbfa 44%,
+      rgba(131,238,214,.96) 52%, rgba(128,186,255,.9) 58%, rgba(186,160,255,.55) 64%, rgba(186,160,255,0) 70%);
+  }
+  .pause-wave.to-dusk{
+    background:radial-gradient(circle closest-side, var(--wave-core,#05060d) 0%, var(--wave-core,#05060d) 44%,
+      rgba(255,180,84,.55) 54%, rgba(255,150,84,.28) 62%, rgba(255,150,84,0) 70%);
+  }
+
+  /* ====================================================================
+     BACK-START DIAL — the orb stretches into a scrubbable ruler
+     ================================================================= */
+  .btn-record.is-rewind{ width:var(--rw-w); height:78px; transform:none !important; cursor:grabbing; }
+  .btn-record.is-rewind .btn-record-dot,
+  .btn-record.is-rewind #btnStartStopLabel{ opacity:0; transform:scale(.6); }
+
+  .btn-record .rw-skin{
+    position:absolute; left:0; top:0; right:0; bottom:0; z-index:3; border-radius:inherit;
+    background:var(--c-ink-2);
+    box-shadow:inset 0 0 0 1px var(--accent-current-soft), inset 0 10px 20px -12px rgba(0,0,0,.45);
+    opacity:0; transition:opacity .3s var(--ease); pointer-events:none;
+  }
+  .btn-record.is-rewind .rw-skin{ opacity:1; transition-delay:.1s; }
+  .btn-record .rw-ruler-win{
+    position:absolute; left:0; top:0; right:0; bottom:0; z-index:4; overflow:hidden; border-radius:inherit;
+    opacity:0; transition:opacity .3s var(--ease); pointer-events:none;
+    -webkit-mask-image:linear-gradient(90deg, transparent 0, #000 17%, #000 83%, transparent 100%);
+            mask-image:linear-gradient(90deg, transparent 0, #000 17%, #000 83%, transparent 100%);
+  }
+  .btn-record.is-rewind .rw-ruler-win{ opacity:1; transition-delay:.22s; }
+  .btn-record .rw-trail{
+    position:absolute; left:50%; right:0; top:0; bottom:0;
+    background:linear-gradient(90deg, var(--accent-current-soft), transparent);
+  }
+  .btn-record .rw-ruler{
+    position:absolute; left:50%; top:0; bottom:0; width:1440px; will-change:transform;
+    transform:translate3d(-1440px,0,0);
+    color:color-mix(in srgb, var(--c-paper) 55%, transparent);
+    background:
+      linear-gradient(90deg, currentColor 0 1.5px, transparent 1.5px) 0 calc(100% - 15px) / 60px 22px repeat-x,
+      linear-gradient(90deg, currentColor 0 1px,   transparent 1px)   0 calc(100% - 15px) / 30px 14px repeat-x,
+      linear-gradient(90deg, currentColor 0 1px,   transparent 1px)   0 calc(100% - 15px) / 6px 8px   repeat-x;
+    transition:color .25s var(--ease);
+  }
+  .btn-record.rw-fine .rw-ruler{ color:var(--accent-current); }
+  .rw-lbl{
+    position:absolute; top:15px; transform:translateX(-50%);
+    font-family:var(--font-mono); font-size:10.5px; font-weight:600; font-style:normal;
+    color:var(--c-mist); white-space:nowrap;
+  }
+  .btn-record .rw-needle{
+    position:absolute; left:50%; top:9px; bottom:9px; width:2.5px; margin-left:-1.25px; border-radius:2px;
+    background:var(--accent-current); box-shadow:0 0 12px 1px var(--accent-current);
+  }
+  body.rewinding .timer-display{ transform:scale(1.035); }
+  .timer-display{ transition:transform .45s var(--ease); }
+  body.rewinding #tmHMS{ background:none; -webkit-text-fill-color:var(--accent-idle); color:var(--accent-idle); }
+  body.rewinding .timer-today{ color:var(--accent-idle); }
+  .panel{ transition:background-color .45s ease, border-color .45s ease, opacity .4s var(--ease); }
+  body.rewinding .panel{ opacity:.4; }
+
+  /* ====================================================================
+     MOVE-DAY SHEET
+     ================================================================= */
+  .mv-sum{
+    display:flex; align-items:center; gap:12px; padding:12px 14px; margin-bottom:16px;
+    border-radius:var(--r-md); background:var(--c-ink-2); border:1px solid var(--c-line-soft);
+  }
+  .mv-sum-main{ min-width:0; }
+  .mv-time{ font-family:var(--font-mono); font-size:14px; font-weight:600; }
+  .mv-sub{ font-size:12px; color:var(--c-fog); margin-top:2px; white-space:nowrap; overflow:hidden; text-overflow:ellipsis; }
+  .mv-strip{
+    position:relative; display:grid; grid-template-columns:repeat(7, 1fr); padding:5px;
+    border-radius:18px; background:var(--c-ink-2); border:1px solid var(--c-line-soft);
+  }
+  .mv-ind{
+    position:absolute; top:5px; bottom:5px; left:5px; width:calc((100% - 10px) / 7);
+    border-radius:13px; background:var(--accent-idle); z-index:0;
+    box-shadow:0 10px 22px -10px var(--accent-idle);
+    transform:translateX(calc(var(--i, 0) * 100%));
+    transition:transform .46s var(--ease-spring), opacity .25s var(--ease);
+  }
+  .mv-ind.off{ opacity:0; }
+  .mv-day{
+    position:relative; z-index:1; border:none; background:none; color:var(--c-mist);
+    padding:9px 0 8px; border-radius:13px; display:flex; flex-direction:column; align-items:center; gap:3px;
+    transition:color .25s var(--ease), transform .15s var(--ease);
+  }
+  .mv-day:active:not(:disabled){ transform:scale(.92); }
+  .mv-day .wd{ font-size:10.5px; font-weight:600; }
+  .mv-day .dn{ font-family:var(--font-mono); font-size:15px; font-weight:700; color:var(--c-paper); transition:color .25s var(--ease); }
+  .mv-day .pip{ width:4px; height:4px; border-radius:50%; background:currentColor; opacity:0; transition:opacity .25s var(--ease); }
+  .mv-day.has .pip{ opacity:.55; }
+  .mv-day:disabled{ opacity:.28; cursor:default; }
+  .mv-day.is-current:disabled{ opacity:1; box-shadow:inset 0 0 0 1.5px var(--c-line); }
+  .mv-day.is-sel, .mv-day.is-sel .dn{ color:#06070f; }
+  .mv-line{
+    margin-top:14px; min-height:20px; font-size:13px; color:var(--c-mist);
+    display:flex; align-items:center; gap:8px; flex-wrap:wrap;
+  }
+  .mv-line b{ color:var(--c-paper); font-weight:600; }
+  .mv-line svg{ width:14px; height:14px; flex:none; color:var(--accent-idle); }
+  .mv-more{ margin-top:14px; margin-bottom:0; }
+
+  .row-icon-btn.is-suggested{ color:var(--accent-idle); background:var(--accent-idle-soft); }
+  .row-icon-btn.is-suggested:hover{ color:var(--accent-idle); background:var(--accent-idle-soft); filter:brightness(1.1); }
+
+  .session-row.is-leaving{
+    overflow:hidden; pointer-events:none;
+    animation:rowLeave .38s var(--ease) forwards !important;
+  }
+  @keyframes rowLeave{
+    0%  { opacity:1; transform:translateX(0); height:var(--row-h); }
+    55% { opacity:0; transform:translateX(var(--leave-x, -28px)); height:var(--row-h); }
+    100%{ opacity:0; transform:translateX(var(--leave-x, -28px)); height:0; padding-top:0; padding-bottom:0; }
+  }
+  .session-row.just-moved{ animation:rowArrive 1.1s var(--ease) both; border-radius:10px; }
+  @keyframes rowArrive{
+    0%  { opacity:0; transform:translateY(-10px); background:var(--accent-idle-soft); }
+    35% { opacity:1; transform:translateY(0);     background:var(--accent-idle-soft); }
+    100%{ opacity:1; transform:translateY(0);     background:transparent; }
+  }
+
+  /* toast with an action (Undo / Move to yesterday) */
+  .toast{ display:flex; align-items:center; gap:16px; }
+  .toast .toast-action{
+    background:none; border:none; padding:0; font:inherit; font-weight:700; color:var(--accent-idle);
+  }
+  .toast .toast-action:hover{ text-decoration:underline; }
+
+
+  /* three row actions (edit · move · delete) must still sit on one line on phones */
+  @media (max-width: 880px){
+    .session-row{ column-gap:8px; }
+    .session-row .row-actions{ gap:0; }
+    .row-icon-btn{ width:32px; height:32px; }
+    .session-row .tag-chip{ max-width:92px; }
+  }
+
+  @media (prefers-reduced-motion: reduce){
+    .pause-aurora *, .fx-ripple, .btn-record .orb-aurora, .pause-wave{ animation:none !important; }
+    .pause-wave{ display:none; }
+    .btn-record, .mv-ind{ transition-duration:.001ms !important; }
+  }
 </style>
 </head>
 <body>
@@ -1770,6 +2081,17 @@
        below the desktop breakpoint; harmless and inert everywhere else. -->
   <div class="alive-breath alive-breath-a" aria-hidden="true"></div>
   <div class="alive-breath alive-breath-b" aria-hidden="true"></div>
+
+  <!-- Pause mode: the frost aurora behind the interface + the wave that carries you into it -->
+  <div class="pause-aurora" id="pauseAurora" aria-hidden="true">
+    <i class="pa-blob pa-a"></i><i class="pa-blob pa-b"></i><i class="pa-blob pa-c"></i><i class="pa-blob pa-d"></i>
+    <i class="pa-rays"></i>
+  </div>
+  <div class="pause-wave" id="pauseWave" aria-hidden="true"></div>
+  <svg width="0" height="0" style="position:absolute" aria-hidden="true" focusable="false"><defs>
+    <linearGradient id="holdGrad" x1="0" y1="0" x2="1" y2="1">
+      <stop offset="0" stop-color="#5fe3c6"/><stop offset=".55" stop-color="#79b8ff"/><stop offset="1" stop-color="#b49bff"/>
+    </linearGradient></defs></svg>
 
   <div class="boot-loading" id="bootLoading"><div class="boot-logo">ST</div></div>
 
@@ -1873,10 +2195,20 @@
             <span id="tmHMS">00:00</span><span id="tmCenti" class="timer-centi">.00</span>
           </div>
           <p class="timer-today" id="timerToday">No sessions yet today</p>
-          <button class="btn-record" id="btnStartStop">
-            <span class="btn-record-dot"></span>
-            <span id="btnStartStopLabel">Start</span>
-          </button>
+          <div class="record-wrap" id="recordWrap">
+            <span class="btn-record orb-fx" aria-hidden="true">
+              <svg class="hold-ring" viewBox="0 0 100 100"><circle class="hr-fg" cx="50" cy="50" r="48" pathLength="100"/></svg>
+              <i class="fx-ripple r1"></i><i class="fx-ripple r2"></i>
+            </span>
+            <button class="btn-record" id="btnStartStop" aria-label="Start timer">
+              <i class="orb-aurora" aria-hidden="true"></i>
+              <i class="rw-skin" aria-hidden="true"></i>
+              <i class="rw-ruler-win" aria-hidden="true"><i class="rw-trail"></i><i class="rw-ruler" id="rwRuler"></i><i class="rw-needle"></i></i>
+              <span class="btn-record-dot"></span>
+              <span id="btnStartStopLabel">Start</span>
+            </button>
+          </div>
+          <p class="record-hint" id="recordHint" aria-live="polite"></p>
         </div>
 
         <div class="panel">
@@ -2203,6 +2535,21 @@
       <div class="tag-swatches" id="tagSwatches"></div>
       <div class="modal-actions">
         <button class="btn-secondary" data-close>Done</button>
+      </div>
+    </div>
+
+    <div class="modal" id="modalMove">
+      <h3>Move to another day</h3>
+      <div class="mv-sum">
+        <span class="dot" id="mvDot"></span>
+        <div class="mv-sum-main"><div class="mv-time" id="mvTime"></div><div class="mv-sub" id="mvSub"></div></div>
+      </div>
+      <div class="mv-strip" id="mvStrip"><span class="mv-ind" id="mvInd"></span></div>
+      <p class="mv-line" id="mvLine"></p>
+      <div class="field mv-more"><label>Or pick any date</label><input type="date" id="mvDate" /></div>
+      <div class="modal-actions">
+        <button class="btn-secondary" data-close>Cancel</button>
+        <button class="btn-primary" id="mvSave">Move</button>
       </div>
     </div>
 
@@ -2597,6 +2944,143 @@
         osc.start(t); osc.stop(t + 1.25);
       });
     });
+  }
+  /* ======================================================================
+     AURORA SOUNDS — pause, resume and the back-start dial
+     Same engine as the Start/Stop chime (soft sines into the shared reverb),
+     so they respect Settings › Button sound and sit in the same sonic world.
+       pause   : a wide, floating pad settles while high glints drift past
+       resume  : a quick airy rise that brightens into a chord
+       dial    : tiny glass ticks, higher on every 5th minute
+     =================================================================== */
+  let _noiseBuf = null;
+  function getNoise(ctx){
+    if(_noiseBuf) return _noiseBuf;
+    const len = Math.floor(ctx.sampleRate * 1.5);
+    const b = ctx.createBuffer(1, len, ctx.sampleRate);
+    const d = b.getChannelData(0);
+    for(let i=0;i<len;i++){ d[i] = Math.random()*2 - 1; }
+    _noiseBuf = b;
+    return b;
+  }
+  function audioReady(){
+    if(!soundEnabled()) return null;
+    const ctx = ensureAudio(); if(!ctx) return null;
+    if(ctx.state === "suspended"){ try{ ctx.resume(); }catch(e){} }
+    return ctx;
+  }
+  /* low-pass sweep -> dry + long reverb */
+  function fxBus(ctx, t, from, to, secs, wetAmt){
+    const lp = ctx.createBiquadFilter();
+    lp.type = "lowpass"; lp.Q.value = 0.5;
+    lp.frequency.setValueAtTime(from, t);
+    lp.frequency.exponentialRampToValueAtTime(to, t + secs);
+    const dry = ctx.createGain(); dry.gain.value = 0.5;
+    lp.connect(dry); dry.connect(ctx.destination);
+    if(_reverb){
+      const wet = ctx.createGain(); wet.gain.value = wetAmt == null ? 0.6 : wetAmt;
+      lp.connect(wet); wet.connect(_reverb); _reverb.connect(ctx.destination);
+    }
+    return lp;
+  }
+  function padVoice(ctx, bus, freq, t, attack, hold, release, peak){
+    [-6, 5].forEach(function(cents){
+      const o = ctx.createOscillator();
+      o.type = "sine"; o.frequency.setValueAtTime(freq, t); o.detune.setValueAtTime(cents, t);
+      const g = ctx.createGain();
+      g.gain.setValueAtTime(0.0001, t);
+      g.gain.exponentialRampToValueAtTime(peak, t + attack);
+      g.gain.setValueAtTime(peak, t + attack + hold);
+      g.gain.exponentialRampToValueAtTime(0.0001, t + attack + hold + release);
+      o.connect(g); g.connect(bus);
+      o.start(t); o.stop(t + attack + hold + release + 0.05);
+    });
+  }
+  function glint(ctx, bus, freq, t, peak){
+    const o = ctx.createOscillator();
+    o.type = "sine";
+    o.frequency.setValueAtTime(freq, t);
+    o.frequency.exponentialRampToValueAtTime(freq * 1.012, t + 0.5);
+    const g = ctx.createGain();
+    g.gain.setValueAtTime(0.0001, t);
+    g.gain.exponentialRampToValueAtTime(peak, t + 0.012);
+    g.gain.exponentialRampToValueAtTime(0.0001, t + 0.95);
+    o.connect(g); g.connect(bus);
+    o.start(t); o.stop(t + 1.0);
+  }
+  function airSweep(ctx, bus, t, f0, f1, dur, peak){
+    const src = ctx.createBufferSource(); src.buffer = getNoise(ctx);
+    const bp = ctx.createBiquadFilter(); bp.type = "bandpass"; bp.Q.value = 1.1;
+    bp.frequency.setValueAtTime(f0, t);
+    bp.frequency.exponentialRampToValueAtTime(f1, t + dur);
+    const g = ctx.createGain();
+    g.gain.setValueAtTime(0.0001, t);
+    g.gain.exponentialRampToValueAtTime(peak, t + dur * 0.45);
+    g.gain.exponentialRampToValueAtTime(0.0001, t + dur);
+    src.connect(bp); bp.connect(g); g.connect(bus);
+    src.start(t); src.stop(t + dur + 0.05);
+  }
+
+  function playAurora(kind){
+    const ctx = audioReady(); if(!ctx) return;
+    const t = ctx.currentTime + 0.02;
+    if(kind === "pause"){
+      const bus = fxBus(ctx, t, 4200, 700, 2.8, 0.65);
+      // D Lydian pad: D3 A3 E4 G#4 B4 — wide and weightless
+      [146.83, 220.00, 329.63, 415.30, 493.88].forEach(function(f, i){
+        padVoice(ctx, bus, f, t + i*0.16, 0.9, 0.5, 2.8, 0.085 - i*0.009);
+      });
+      // high glints drifting past, like light moving through the curtain
+      [1318.5, 1760.0, 2093.0, 1568.0, 2349.3, 1975.5].forEach(function(f, i){
+        glint(ctx, bus, f, t + 0.35 + i*0.23 + Math.random()*0.06, 0.05);
+      });
+      airSweep(ctx, bus, t, 3600, 500, 1.6, 0.03);
+    } else if(kind === "resume"){
+      const bus = fxBus(ctx, t, 900, 5200, 1.2, 0.55);
+      airSweep(ctx, bus, t, 380, 4200, 0.75, 0.05);
+      [293.66, 440.00, 587.33, 739.99, 880.00].forEach(function(f, i){
+        padVoice(ctx, bus, f, t + 0.1 + i*0.07, 0.14, 0.12, 1.3, 0.07);
+      });
+      [1174.7, 1480.0, 1760.0, 2349.3].forEach(function(f, i){
+        glint(ctx, bus, f, t + 0.3 + i*0.085, 0.045);
+      });
+    }
+  }
+
+  let _lastTickAt = 0;
+  function playRewind(kind, m){
+    const ctx = audioReady(); if(!ctx) return;
+    const t = ctx.currentTime;
+    if(kind === "tick"){
+      const nowMs = performance.now();
+      if(nowMs - _lastTickAt < 28) return;
+      _lastTickAt = nowMs;
+      const five = m % 5 === 0;
+      const f = (five ? 1568 : 1046.5) * (1 + Math.min(m, 120) / 700);
+      const o = ctx.createOscillator(); o.type = "sine"; o.frequency.setValueAtTime(f, t);
+      const g = ctx.createGain();
+      g.gain.setValueAtTime(0.0001, t);
+      g.gain.exponentialRampToValueAtTime(five ? 0.07 : 0.035, t + 0.005);
+      g.gain.exponentialRampToValueAtTime(0.0001, t + 0.08);
+      o.connect(g); g.connect(ctx.destination);
+      o.start(t); o.stop(t + 0.1);
+    } else if(kind === "open"){
+      const bus = fxBus(ctx, t, 2200, 2200, 0.2, 0.55);
+      padVoice(ctx, bus, 196.00, t, 0.22, 0.0, 1.0, 0.06);
+      padVoice(ctx, bus, 293.66, t + 0.06, 0.22, 0.0, 1.0, 0.05);
+      glint(ctx, bus, 1174.7, t + 0.2, 0.04);
+    } else if(kind === "cancel"){
+      const bus = fxBus(ctx, t, 2200, 2200, 0.2, 0.4);
+      const o = ctx.createOscillator(); o.type = "sine";
+      o.frequency.setValueAtTime(659.25, t);
+      o.frequency.exponentialRampToValueAtTime(440, t + 0.18);
+      const g = ctx.createGain();
+      g.gain.setValueAtTime(0.0001, t);
+      g.gain.exponentialRampToValueAtTime(0.05, t + 0.01);
+      g.gain.exponentialRampToValueAtTime(0.0001, t + 0.3);
+      o.connect(g); g.connect(bus);
+      o.start(t); o.stop(t + 0.35);
+    }
   }
   function debounce(fn, ms){
     let t;
@@ -2998,16 +3482,30 @@
      TOASTS
      =================================================================== */
   const toastStack = document.getElementById("toastStack");
-  function toast(msg){
+  /* toast(msg) — or toast(msg, { action:{ label, onClick }, duration }) for
+     a toast with a one-tap action (Undo, Move to yesterday…). */
+  function toast(msg, opts){
+    opts = opts || {};
     const el = document.createElement("div");
     el.className = "toast";
-    el.textContent = msg;
-    toastStack.appendChild(el);
-    requestAnimationFrame(function(){ el.classList.add("show"); });
-    setTimeout(function(){
+    const txt = document.createElement("span");
+    txt.textContent = msg;
+    el.appendChild(txt);
+    let gone = false;
+    function hide(){
+      if(gone) return; gone = true;
       el.classList.remove("show");
       setTimeout(function(){ el.remove(); }, 260);
-    }, 2400);
+    }
+    if(opts.action){
+      const b = document.createElement("button");
+      b.type = "button"; b.className = "toast-action"; b.textContent = opts.action.label;
+      b.addEventListener("click", function(){ hide(); try{ opts.action.onClick(); }catch(e){ console.error(e); } });
+      el.appendChild(b);
+    }
+    toastStack.appendChild(el);
+    requestAnimationFrame(function(){ el.classList.add("show"); });
+    setTimeout(hide, opts.duration || (opts.action ? 6500 : 2400));
   }
 
   /* ======================================================================
@@ -3430,9 +3928,13 @@
   /* ======================================================================
      TIMER
      =================================================================== */
-  let timerRunning = false;
-  let timerStartMs = 0;
+  let timerRunning = false;     // a session is in progress (running OR paused)
+  let timerPaused = false;
+  let timerStartMs = 0;         // wall-clock moment the session began (may be back-dated)
+  let timerPausedAt = 0;        // when the current pause began
+  let timerPausedMs = 0;        // total time already spent paused in this session
   let timerInterval = null;
+  let pauseTicker = null;
 
   /* ----------------------------------------------------------------------
      PERSISTED TIMER — survives closing the app/tab, locking the phone, or
@@ -3445,7 +3947,7 @@
      -------------------------------------------------------------------- */
   const RUNNING_KEY = "studytrack.runningTimer.v1";
   function saveRunningTimer(){
-    try{ localStorage.setItem(RUNNING_KEY, JSON.stringify({ startedAt: timerStartMs })); }catch(e){}
+    try{ localStorage.setItem(RUNNING_KEY, JSON.stringify({ startedAt: timerStartMs, pausedAt: timerPaused ? timerPausedAt : null, pausedMs: timerPausedMs })); }catch(e){}
   }
   function clearRunningTimer(){
     try{ localStorage.removeItem(RUNNING_KEY); }catch(e){}
@@ -3458,6 +3960,12 @@
       if(parsed && typeof parsed.startedAt === "number" && parsed.startedAt > 0) return parsed;
     }catch(e){}
     return null;
+  }
+
+  /* active time = (now, or the moment you paused) − start − time already paused */
+  function elapsedMs(){
+    const ref = timerPaused ? timerPausedAt : Date.now();
+    return Math.max(0, ref - timerStartMs - timerPausedMs);
   }
 
   const tmHMS = document.getElementById("tmHMS");
@@ -3485,7 +3993,7 @@
   }
 
   function tickDisplay(){
-    const elapsed = Date.now() - timerStartMs;
+    const elapsed = elapsedMs();
     const totalSec = elapsed/1000;
     const h = Math.floor(totalSec/3600), m = Math.floor((totalSec%3600)/60), s = Math.floor(totalSec%60);
     const cs = Math.floor((elapsed%1000)/10);
@@ -3521,8 +4029,8 @@
   let notifInstance = null;
   function canNotify(){ return typeof Notification !== "undefined"; }
   function showTimerNotification(){
-    if(!canNotify() || Notification.permission !== "granted" || !timerRunning) return;
-    const elapsedSec = Math.round((Date.now() - timerStartMs)/1000);
+    if(!canNotify() || Notification.permission !== "granted" || !timerRunning || timerPaused) return;
+    const elapsedSec = Math.round(elapsedMs()/1000);
     try{
       if(notifInstance) notifInstance.close();
       notifInstance = new Notification("StudyTrack — timer running", {
@@ -3550,42 +4058,218 @@
     if(notifInstance){ try{ notifInstance.close(); }catch(e){} notifInstance = null; }
   }
 
+  /* ----------------------------------------------------------------------
+     SESSION LIFECYCLE
+       idle  ──tap──▶  running  ──tap──▶  saved
+       idle  ──hold─▶  back-start dial ──lift──▶ running (clock pre-wound)
+       running ─hold─▶ paused (frost aurora) ─hold─▶ running
+       paused  ─tap──▶ saved   (ends at the moment you paused)
+     The persisted record is {startedAt, pausedAt, pausedMs}, so a pause
+     survives a reload exactly like a running timer does.
+     -------------------------------------------------------------------- */
+  function reduceMotion(){
+    return !!(window.matchMedia && window.matchMedia("(prefers-reduced-motion: reduce)").matches);
+  }
+  function haptic(ms){ try{ if(navigator.vibrate) navigator.vibrate(ms); }catch(e){} }
+
+  const recordWrap = document.getElementById("recordWrap");
+  const recordHint = document.getElementById("recordHint");
+
+  /* "Today: …" / "Paused · 02:14" / "Started 21:35" share one line */
+  function setTodayText(txt, animate){
+    if(timerTodayEl.textContent === txt) return;
+    timerTodayEl.textContent = txt;
+    if(animate){
+      timerTodayEl.classList.remove("swap");
+      void timerTodayEl.offsetWidth;
+      timerTodayEl.classList.add("swap");
+    }
+  }
+  function refreshTodayLabel(){
+    const today = todayStr();
+    const totalSec = state.sessions.filter(function(s){ return s.date === today; })
+      .reduce(function(sum, s){ return sum + s.durationSec; }, 0);
+    setTodayText(totalSec > 0 ? ("Today: " + minutesToLabel(totalSec/60)) : "No sessions yet today", true);
+  }
+
+  /* ---- gesture hints: shown until you've used each gesture a few times --- */
+  const HINTS_KEY = "studytrack.hints.v1";
+  let hintCounts = (function(){
+    try{ return JSON.parse(localStorage.getItem(HINTS_KEY) || "{}") || {}; }catch(e){ return {}; }
+  })();
+  function bumpHint(k){
+    hintCounts[k] = (hintCounts[k] || 0) + 1;
+    try{ localStorage.setItem(HINTS_KEY, JSON.stringify(hintCounts)); }catch(e){}
+    setRecordHint();
+  }
+  let _hintWant = "";
+  function swapHint(txt){
+    _hintWant = txt;
+    if(recordHint.textContent === txt) return;
+    recordHint.classList.add("is-out");
+    setTimeout(function(){
+      recordHint.textContent = _hintWant;
+      recordHint.classList.remove("is-out");
+    }, 170);
+  }
+  function setRecordHint(mode){
+    let txt = "";
+    if(mode === "rewind")      txt = "Drag right to go back · lift to start";
+    else if(mode === "fine")   txt = "Fine control · slide back down to speed up";
+    else if(!timerRunning)     txt = (hintCounts.rewind || 0) < 3 ? "Hold to start from earlier" : "";
+    else if(timerPaused)       txt = "Hold to resume · tap to finish";
+    else                       txt = (hintCounts.pause || 0) < 3 ? "Hold to pause" : "";
+    swapHint(txt);
+  }
+
+  /* ---- the wave that turns the interface light (and back) -------------- */
+  function runVeil(toPause, swapFn){
+    const wave = document.getElementById("pauseWave");
+    if(!wave || !wave.animate || reduceMotion()){ swapFn(); return; }
+    const r = btnStartStop.getBoundingClientRect();
+    const ox = r.left + r.width/2, oy = r.top + r.height/2;
+    const vw = window.innerWidth, vh = window.innerHeight;
+    const maxDist = Math.max(Math.hypot(ox, oy), Math.hypot(vw-ox, oy), Math.hypot(ox, vh-oy), Math.hypot(vw-ox, vh-oy));
+    const S = (maxDist / (320 * 0.44)) * 1.05;           // opaque core = 44% of the disc's radius
+    wave.className = "pause-wave " + (toPause ? "to-pause" : "to-dusk");
+    if(!toPause){
+      const v = getComputedStyle(document.documentElement).getPropertyValue("--c-void").trim();
+      wave.style.setProperty("--wave-core", v || "#05060d");
+    }
+    const at = function(s){ return "translate(" + ox + "px," + oy + "px) scale(" + s + ")"; };
+    wave.animate([
+      { transform:at(0),      opacity:1, easing:"cubic-bezier(.45,.02,.2,1)" },
+      { transform:at(S),      opacity:1, offset:.5, easing:"ease-in-out" },
+      { transform:at(S*1.08), opacity:0 }
+    ], { duration:1500 });
+    setTimeout(swapFn, 700);                              // tokens swap while the wave fully covers the screen
+  }
+  function orbArrive(){
+    btnStartStop.classList.remove("arrive");
+    void btnStartStop.offsetWidth;
+    btnStartStop.classList.add("arrive");
+    setTimeout(function(){ btnStartStop.classList.remove("arrive"); }, 1050);
+  }
+
+  function startPauseTicker(){
+    stopPauseTicker();
+    function paint(){ setTodayText("Paused · " + secToClock((Date.now() - timerPausedAt)/1000), false); }
+    setTodayText("Paused · " + secToClock((Date.now() - timerPausedAt)/1000), true);
+    pauseTicker = setInterval(paint, 1000);
+  }
+  function stopPauseTicker(){ clearInterval(pauseTicker); pauseTicker = null; }
+
+  function applyPauseVisuals(on, instant){
+    function swap(){
+      const body = document.body;
+      if(on){
+        body.classList.remove("running"); body.classList.add("paused");
+        btnStartStopLabel.textContent = "Paused";
+        btnStartStop.setAttribute("aria-label", "Paused. Hold to resume, tap to finish the session");
+        if(practiceTimerLabelEl) practiceTimerLabelEl.textContent = "Paused";
+        startPauseTicker();
+      } else {
+        body.classList.remove("paused"); body.classList.add("running");
+        btnStartStopLabel.textContent = "Stop";
+        btnStartStop.setAttribute("aria-label", "Stop timer and save session");
+        if(practiceTimerLabelEl) practiceTimerLabelEl.textContent = "Running";
+        stopPauseTicker();
+        _todayLabelSecond = -1;
+      }
+      setRecordHint();
+      if(!instant) orbArrive();
+    }
+    if(instant){ swap(); return; }
+    runVeil(on, swap);
+  }
+
+  function pauseTimer(opts){
+    if(!timerRunning || timerPaused) return;
+    const restoreAt = opts && opts.restoreAt;
+    timerPaused = true;
+    timerPausedAt = restoreAt || Date.now();
+    clearInterval(timerInterval); timerInterval = null;
+    stopTimerNotification();
+    saveRunningTimer();
+    tickDisplay();                                        // freeze on the exact moment of the pause
+    if(!restoreAt){ playAurora("pause"); }
+    applyPauseVisuals(true, !!restoreAt);
+  }
+  function resumeTimer(){
+    if(!timerRunning || !timerPaused) return;
+    stopPauseTicker();
+    timerPausedMs += Date.now() - timerPausedAt;
+    timerPaused = false; timerPausedAt = 0;
+    saveRunningTimer();
+    playAurora("resume");
+    _todayLabelSecond = -1;
+    clearInterval(timerInterval);
+    timerInterval = setInterval(tickDisplay, 50);
+    tickDisplay();
+    startTimerNotification();
+    bumpHint("resume");
+    applyPauseVisuals(false, false);
+  }
+
   /* startedAtMs optional — pass it when RESUMING a timer that was already
-     running (so we don't play the start chime again or reset the clock). */
-  function startTimer(startedAtMs, silent){
+     running, or to BACK-DATE a new one (the back-start dial). `restore`
+     carries {pausedMs, pausedAt} from the persisted record. */
+  function startTimer(startedAtMs, silent, restore){
     if(!silent) playTone("start");
     timerRunning = true;
+    timerPaused = false; timerPausedAt = 0;
+    timerPausedMs = (restore && restore.pausedMs) || 0;
     timerStartMs = startedAtMs || Date.now();
     saveRunningTimer();
     recomputeTodaySavedSec();
     _todayLabelSecond = -1;
+    if(restore && restore.pausedAt){ pauseTimer({ restoreAt: restore.pausedAt }); return; }
     document.body.classList.add("running");
     btnStartStopLabel.textContent = "Stop";
+    btnStartStop.setAttribute("aria-label", "Stop timer and save session");
     if(practiceTimerLabelEl) practiceTimerLabelEl.textContent = "Running";
     clearInterval(timerInterval);
     timerInterval = setInterval(tickDisplay, 50);
     tickDisplay();
+    setRecordHint();
 
     startTimerNotification();
   }
   function stopTimer(){
     playTone("stop");
-    clearInterval(timerInterval);
-    const elapsedSec = Math.round((Date.now() - timerStartMs)/1000);
-    timerRunning = false;
-    document.body.classList.remove("running");
-    btnStartStopLabel.textContent = "Start";
-    if(practiceTimerLabelEl) practiceTimerLabelEl.textContent = "Idle";
+    clearInterval(timerInterval); timerInterval = null;
+    const wasPaused = timerPaused;
+    // a paused session ends the moment you paused, not when you came back to tap Finish
+    const endMs = wasPaused ? timerPausedAt : Date.now();
+    const elapsedSec = Math.round(elapsedMs()/1000);
+    timerRunning = false; timerPaused = false; timerPausedAt = 0; timerPausedMs = 0;
+    stopPauseTicker();
+    if(wasPaused){
+      runVeil(false, function(){
+        document.body.classList.remove("paused");
+        btnStartStopLabel.textContent = "Start";
+        btnStartStop.setAttribute("aria-label", "Start timer");
+        if(practiceTimerLabelEl) practiceTimerLabelEl.textContent = "Idle";
+        setRecordHint();
+        orbArrive();
+      });
+    } else {
+      document.body.classList.remove("running");
+      btnStartStopLabel.textContent = "Start";
+      btnStartStop.setAttribute("aria-label", "Start timer");
+      if(practiceTimerLabelEl) practiceTimerLabelEl.textContent = "Idle";
+    }
     resetDisplay();
     clearRunningTimer();
     stopTimerNotification();
+    setRecordHint();
 
     if(elapsedSec < 1){ return; } // ignore accidental instant taps
 
     const startD = new Date(timerStartMs);
-    const endD = new Date();
+    const endD = new Date(endMs);
     const draft = {
-      date: todayStr(),
+      date: dateToStr(endD),
       start: pad(startD.getHours())+":"+pad(startD.getMinutes()),
       end: pad(endD.getHours())+":"+pad(endD.getMinutes()),
       durationSec: elapsedSec,
@@ -3594,7 +4278,18 @@
     };
     const saved = addSessionLocal(draft);
     renderAll();
-    toast("Session saved · " + secToClock(elapsedSec));
+
+    // Studied across midnight? The session is filed under the day you finished,
+    // so offer the one-tap fix right where you're looking.
+    if(isOvernight(draft)){
+      const prev = addDays(draft.date, -1);
+      const prevLabel = prev === addDays(todayStr(), -1) ? "yesterday" : shortDayLabel(prev);
+      toast("Session saved · " + secToClock(elapsedSec), {
+        action:{ label:"Move to " + prevLabel, onClick:function(){ moveSessionAnimated(saved.id, prev); } }
+      });
+    } else {
+      toast("Session saved · " + secToClock(elapsedSec));
+    }
 
     requestAnimationFrame(function(){
       const input = document.querySelector('.row-notes[data-id="'+saved.id+'"]');
@@ -3607,15 +4302,190 @@
   function resumeRunningTimerIfAny(){
     if(timerRunning) return; // already ticking in this session
     const saved = loadRunningTimer();
-    if(saved) startTimer(saved.startedAt, true);
+    if(saved) startTimer(saved.startedAt, true, { pausedMs:saved.pausedMs, pausedAt:saved.pausedAt });
   }
   document.addEventListener("visibilitychange", function(){
     if(document.visibilityState === "visible") resumeRunningTimerIfAny();
+    else if(rewinding) cancelRewind();
   });
   window.addEventListener("pageshow", resumeRunningTimerIfAny);
   window.addEventListener("focus", resumeRunningTimerIfAny);
 
+  /* ======================================================================
+     BACK-START DIAL
+     Hold the orb while idle and it stretches into a ruler. Drag right to wind
+     the clock back (past is to the left, "now" slides away to the right),
+     lift to start from there. Slide your finger up for fine control; flick
+     quickly to cover big distances. Lift at 0 to cancel.
+     =================================================================== */
+  const RW_MAX = 240;        // minutes
+  const RW_PPM = 6;          // ruler pixels per minute (visual)
+  const RW_DRAG_PPM = 4;     // finger pixels per minute at normal speed
+  const rw = { A:0, m:0, lastX:0, lastT:0, y0:0, fine:false, prevToday:"", clock:null };
+  let rewinding = false;
+
+  const rwRuler = document.getElementById("rwRuler");
+  (function buildRuler(){
+    let html = "";
+    for(let m = 0; m <= RW_MAX; m += 10){
+      let label;
+      if(m === 0) label = "now";
+      else if(m < 60) label = String(m);
+      else label = Math.floor(m/60) + "h" + (m%60 ? pad(m%60) : "");
+      html += '<i class="rw-lbl" style="left:' + ((RW_MAX - m) * RW_PPM) + 'px">' + label + '</i>';
+    }
+    rwRuler.innerHTML = html;
+  })();
+
+  function rewindClockText(m){
+    const d = new Date(Date.now() - m*60000);
+    return pad(d.getHours()) + ":" + pad(d.getMinutes());
+  }
+  function paintRewind(rulerVal){
+    const m = rw.m;
+    const h = Math.floor(m/60), mm = m % 60;
+    tmHMS.textContent = h > 0 ? (pad(h)+":"+pad(mm)+":00") : (pad(mm)+":00");
+    tmCenti.textContent = ".00";
+    setTodayText(m === 0 ? "Drag right to go back in time"
+                         : "Started " + rewindClockText(m) + " · " + minutesToLabel(m) + " ago", false);
+    rwRuler.style.transform = "translate3d(" + (-(RW_MAX - rulerVal) * RW_PPM) + "px,0,0)";
+  }
+  function openRewind(){
+    rewinding = true;
+    rw.A = 0; rw.m = 0; rw.fine = false;
+    rw.lastX = press.lx; rw.y0 = press.ly; rw.lastT = performance.now();
+    rw.prevToday = timerTodayEl.textContent;
+    document.body.classList.add("rewinding");
+    btnStartStop.classList.add("is-rewind");
+    btnStartStop.classList.remove("rw-fine");
+    paintRewind(0);
+    timerTodayEl.classList.remove("swap"); void timerTodayEl.offsetWidth; timerTodayEl.classList.add("swap");
+    setRecordHint("rewind");
+    playRewind("open");
+    clearInterval(rw.clock);
+    rw.clock = setInterval(function(){ if(rewinding) paintRewind(rw.m <= 60 ? rw.A / RW_DRAG_PPM : rw.m); }, 1000);
+  }
+  function rewindMove(e){
+    const now = performance.now();
+    const dx = e.clientX - rw.lastX;
+    const dt = Math.max(8, now - rw.lastT);
+    rw.lastX = e.clientX; rw.lastT = now;
+    const dy = Math.abs(e.clientY - rw.y0);
+    const fineF = dy > 32 ? Math.max(.12, 1 - (dy - 32)/150) : 1;
+    const speed = Math.abs(dx) / dt;                              // px per ms
+    const accel = fineF < 1 ? 1 : 1 + Math.min(3, Math.max(0, (speed - .7) * 1.6));
+    rw.A = Math.max(0, Math.min(RW_MAX * RW_DRAG_PPM, rw.A + dx * fineF * accel));
+
+    const mf = rw.A / RW_DRAG_PPM;
+    let m = Math.round(mf);
+    if(m > 60) m = Math.round(m/5) * 5;
+    m = Math.min(RW_MAX, m);
+
+    const isFine = fineF < .85;
+    if(isFine !== rw.fine){
+      rw.fine = isFine;
+      btnStartStop.classList.toggle("rw-fine", isFine);
+      setRecordHint(isFine ? "fine" : "rewind");
+    }
+    const changed = m !== rw.m;
+    rw.m = m;
+    paintRewind(m <= 60 ? mf : m);
+    if(changed){
+      haptic(m % 5 === 0 ? 9 : 3);
+      playRewind("tick", m);
+    }
+  }
+  function closeRewindUI(){
+    rewinding = false;
+    clearInterval(rw.clock); rw.clock = null;
+    document.body.classList.remove("rewinding");
+    btnStartStop.classList.remove("is-rewind", "rw-fine");
+  }
+  function cancelRewind(){
+    if(!rewinding) return;
+    closeRewindUI();
+    resetDisplay();
+    refreshTodayLabel();
+    playRewind("cancel");
+    setRecordHint();
+  }
+  function commitRewind(){
+    const m = rw.m;
+    if(m < 1){ cancelRewind(); return; }
+    closeRewindUI();
+    haptic(18);
+    startTimer(Date.now() - m * 60000);                           // plays the normal start chime
+    bumpHint("rewind");
+  }
+
+  /* ======================================================================
+     ONE BUTTON, THREE GESTURES  (tap · hold · hold-then-drag)
+     =================================================================== */
+  const HOLD_REWIND_MS = 520, HOLD_PAUSE_MS = 640;
+  let press = null;
+  let suppressClick = false;
+
+  function holdKind(){ return !timerRunning ? "rewind" : (timerPaused ? "resume" : "pause"); }
+  function holdBegin(kind){
+    recordWrap.style.setProperty("--hold-ms", (kind === "rewind" ? HOLD_REWIND_MS : HOLD_PAUSE_MS) + "ms");
+    recordWrap.classList.remove("hk-rewind", "hk-pause", "hk-resume");
+    recordWrap.classList.add("hk-" + kind);
+    void recordWrap.offsetWidth;                                  // restart the ring from empty
+    recordWrap.classList.add("holding");
+  }
+  function holdEnd(){ recordWrap.classList.remove("holding"); }
+
+  function fireHold(){
+    if(!press || press.fired) return;
+    press.fired = true;
+    suppressClick = true;                                         // the lift after a hold must not count as a tap
+    haptic(16);
+    if(press.kind === "pause"){ holdEnd(); pauseTimer(); }
+    else if(press.kind === "resume"){ holdEnd(); resumeTimer(); }
+    else { holdEnd(); openRewind(); }
+  }
+
+  btnStartStop.addEventListener("pointerdown", function(e){
+    if(rewinding) return;
+    if(e.pointerType === "mouse" && e.button !== 0) return;
+    if(modalLayer.classList.contains("open")) return;
+    const kind = holdKind();
+    press = { id:e.pointerId, x0:e.clientX, y0:e.clientY, lx:e.clientX, ly:e.clientY, kind:kind, fired:false, t:null };
+    holdBegin(kind);
+    press.t = setTimeout(fireHold, kind === "rewind" ? HOLD_REWIND_MS : HOLD_PAUSE_MS);
+    try{ btnStartStop.setPointerCapture(e.pointerId); }catch(err){}
+  });
+  btnStartStop.addEventListener("pointermove", function(e){
+    if(!press || e.pointerId !== press.id) return;
+    press.lx = e.clientX; press.ly = e.clientY;
+    if(rewinding){ rewindMove(e); return; }
+    if(!press.fired){
+      const dx = e.clientX - press.x0, dy = e.clientY - press.y0;
+      if(dx*dx + dy*dy > 14*14){                                  // wandered off: not a hold, not a tap
+        clearTimeout(press.t); press = null; holdEnd(); suppressClick = true;
+        setTimeout(function(){ suppressClick = false; }, 80);
+      }
+    }
+  });
+  btnStartStop.addEventListener("pointerup", function(e){
+    if(!press || e.pointerId !== press.id) return;
+    const p = press; press = null;
+    clearTimeout(p.t); holdEnd();
+    try{ btnStartStop.releasePointerCapture(p.id); }catch(err){}
+    if(rewinding) commitRewind();
+    setTimeout(function(){ suppressClick = false; }, 80);          // the click (if any) has fired by now
+  });
+  btnStartStop.addEventListener("pointercancel", function(){
+    if(!press) return;
+    clearTimeout(press.t); press = null; holdEnd();
+    if(rewinding) cancelRewind();
+    setTimeout(function(){ suppressClick = false; }, 80);
+  });
+  btnStartStop.addEventListener("contextmenu", function(e){ e.preventDefault(); });
+
   btnStartStop.addEventListener("click", function(){
+    if(suppressClick){ suppressClick = false; return; }
+    if(rewinding) return;
     if(!timerRunning) startTimer(); else stopTimer();
   });
 
@@ -3627,22 +4497,32 @@
   });
 
   document.addEventListener("keydown", function(e){
-    if(e.code !== "Space") return;
+    if(e.key === "Escape" && rewinding){ press = null; holdEnd(); cancelRewind(); return; }
+    if(e.code !== "Space" && e.code !== "KeyP") return;
+    if(e.metaKey || e.ctrlKey || e.altKey) return;
     const tag = (document.activeElement && document.activeElement.tagName) || "";
     if(tag === "INPUT" || tag === "TEXTAREA") return;
     if(modalLayer.classList.contains("open")) return;
     const activeView = document.querySelector(".view.active");
     if(!activeView || activeView.dataset.view !== "timer") return;
+    if(rewinding) return;
     e.preventDefault();
+    if(e.code === "KeyP"){                                        // P = pause / resume
+      if(!timerRunning) return;
+      if(timerPaused) resumeTimer(); else pauseTimer();
+      return;
+    }
     if(!timerRunning) startTimer(); else stopTimer();
   });
+
+  setRecordHint();
 
   /* ======================================================================
      SESSION ROW BUILDER (shared by Recent + History)
      =================================================================== */
   function buildSessionRow(session, compact){
     const row = document.createElement("div");
-    row.className = "session-row";
+    row.className = "session-row" + (session.id === _justMovedId ? " just-moved" : "");
 
     const dot = document.createElement("span");
     dot.className = "dot";
@@ -3657,7 +4537,10 @@
     rt.textContent = session.start + " – " + session.end;
     const rs = document.createElement("div");
     rs.className = "row-sub";
-    rs.textContent = secToClock(session.durationSec) + (session.manual ? "  ·  manual" : "");
+    let subText = secToClock(session.durationSec) + (session.manual ? "  ·  manual" : "");
+    const brk = pausedSecOf(session);
+    if(brk >= 90) subText += "  ·  " + minutesToLabel(brk/60) + " paused";
+    rs.textContent = subText;
     main.appendChild(rt); main.appendChild(rs);
     row.appendChild(main);
 
@@ -3734,6 +4617,14 @@
     editBtn.addEventListener("click", function(){ openEditSession(session.id); });
     actions.appendChild(editBtn);
 
+    const moveBtn = document.createElement("button");
+    moveBtn.className = "row-icon-btn" + (isOvernight(session) ? " is-suggested" : "");
+    moveBtn.title = isOvernight(session) ? "Crossed midnight — move to the day it started" : "Move to another day";
+    moveBtn.setAttribute("aria-label", "Move session to another day");
+    moveBtn.innerHTML = '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="5" width="18" height="16" rx="2.5"/><path d="M3 9h18"/><path d="M8 3v4M16 3v4"/><path d="M9 15h6M12.5 12.5L15 15l-2.5 2.5"/></svg>';
+    moveBtn.addEventListener("click", function(){ openMoveSession(session.id); });
+    actions.appendChild(moveBtn);
+
     const delBtn = document.createElement("button");
     delBtn.className = "row-icon-btn danger";
     delBtn.title = "Delete";
@@ -3769,14 +4660,178 @@
     const start = document.getElementById("editStart").value;
     const end = document.getElementById("editEnd").value;
     const notes = document.getElementById("editNotes").value;
-    const mins = durationMinutesBetween(start, end);
+    // Times untouched (e.g. you only changed the day or the notes)? keep the saved
+    // duration — that's what lets an overnight 23:00 → 01:00 session, or one with
+    // a pause in it, be edited without tripping the "end after start" check.
+    const timesUnchanged = start === s.start && end === s.end;
+    const mins = timesUnchanged ? 1 : durationMinutesBetween(start, end);
     if(!date || !mins){ toast("End time must be after start time."); return; }
     const oldKey = tagKey(s);
-    updateSessionLocal(id, { date:date, start:start, end:end, notes:notes, durationSec: mins*60 });
+    updateSessionLocal(id, { date:date, start:start, end:end, notes:notes, durationSec: timesUnchanged ? s.durationSec : mins*60 });
     moveSessionTag(oldKey, date + "|" + start + "|" + end); // keep the tag attached after a time edit
     closeModal();
     renderAll();
     toast("Session updated");
+  });
+
+  /* ======================================================================
+     MOVE A SESSION TO ANOTHER DAY
+     A session is filed under the day you STOPPED, so 23:00 → 01:00 lands on
+     tomorrow. Moving only changes the `date` — start, end, duration, notes
+     and the subject tag all travel with it, through the same offline-first
+     update path as every other edit, so the data model is untouched.
+     =================================================================== */
+  function isOvernight(s){ return timeToMinutes(s.end) < timeToMinutes(s.start); }
+  function shortDayLabel(dateStr){
+    return dateStrToDate(dateStr).toLocaleDateString(undefined, { weekday:"short", month:"short", day:"numeric" });
+  }
+  /* time spent paused, inferred from (end − start) vs. the saved duration */
+  function pausedSecOf(s){
+    if(s.manual) return 0;
+    let span = timeToMinutes(s.end) - timeToMinutes(s.start);
+    if(span < 0) span += 1440;
+    return span * 60 - s.durationSec;
+  }
+
+  function moveSessionToDate(id, newDate){
+    const s = state.sessions.find(function(x){ return x.id === id; });
+    if(!s || !newDate || s.date === newDate) return null;
+    const oldDate = s.date;
+    const oldKey = tagKey(s);
+    updateSessionLocal(id, { date:newDate });
+    moveSessionTag(oldKey, newDate + "|" + s.start + "|" + s.end);   // tag keys include the date
+    return oldDate;
+  }
+
+  let _justMovedId = null;
+  function moveSessionAnimated(id, newDate, isUndo){
+    const s = state.sessions.find(function(x){ return x.id === id; });
+    if(!s || s.date === newDate) return;
+    const oldDate = s.date;
+    const input = document.querySelector('.view.active .row-notes[data-id="' + id + '"]');
+    const row = input && input.closest(".session-row");
+
+    function finish(){
+      const from = moveSessionToDate(id, newDate);
+      if(!from) return;
+      _justMovedId = id;
+      renderAll();
+      _justMovedId = null;
+      requestAnimationFrame(function(){
+        const el = document.querySelector(".view.active .session-row.just-moved");
+        if(el && el.scrollIntoView) el.scrollIntoView({ block:"nearest", behavior: reduceMotion() ? "auto" : "smooth" });
+      });
+      if(isUndo){
+        toast("Moved back to " + formatDateHuman(newDate));
+      } else {
+        toast("Moved to " + formatDateHuman(newDate), {
+          action:{ label:"Undo", onClick:function(){ moveSessionAnimated(id, oldDate, true); } }
+        });
+      }
+    }
+
+    if(row && !reduceMotion()){
+      row.style.setProperty("--row-h", row.offsetHeight + "px");
+      row.style.setProperty("--leave-x", (newDate < oldDate ? "-28px" : "28px"));
+      row.classList.add("is-leaving");
+      setTimeout(finish, 360);
+    } else {
+      finish();
+    }
+  }
+
+  /* ---- the sheet -------------------------------------------------------- */
+  const mvStrip = document.getElementById("mvStrip");
+  const mvInd = document.getElementById("mvInd");
+  const mvLine = document.getElementById("mvLine");
+  const mvSave = document.getElementById("mvSave");
+  const mvDate = document.getElementById("mvDate");
+  let _moveId = null, _moveBase = null, _moveTarget = null;
+
+  function dayDiff(a, b){ return Math.round((dateStrToDate(b) - dateStrToDate(a)) / 86400000); }
+
+  function openMoveSession(id){
+    const s = state.sessions.find(function(x){ return x.id === id; });
+    if(!s) return;
+    _moveId = id; _moveBase = s.date;
+    _moveTarget = addDays(s.date, -1);                             // the common case: it belongs to the day before
+    const color = sessionDotColor(s);
+    const dot = document.getElementById("mvDot");
+    dot.style.background = color; dot.style.color = color;
+    document.getElementById("mvTime").textContent = s.start + " – " + s.end;
+    const tag = sessionTag(s), notes = (s.notes || "").trim();
+    document.getElementById("mvSub").textContent =
+      secToClock(s.durationSec) + (isOvernight(s) ? "  ·  crosses midnight" : "") + (tag ? "  ·  " + tag.name : "") + (notes ? "  ·  " + notes : "");
+
+    mvStrip.querySelectorAll(".mv-day").forEach(function(b){ b.remove(); });
+    const today = todayStr();
+    for(let i = -3; i <= 3; i++){
+      const d = addDays(s.date, i);
+      const dt = dateStrToDate(d);
+      const b = document.createElement("button");
+      b.type = "button";
+      b.className = "mv-day";
+      b.dataset.date = d;
+      b.innerHTML = '<span class="wd"></span><span class="dn"></span><span class="pip"></span>';
+      b.querySelector(".wd").textContent = dt.toLocaleDateString(undefined, { weekday:"short" });
+      b.querySelector(".dn").textContent = dt.getDate();
+      b.setAttribute("aria-label", formatDateHuman(d));
+      if(i === 0){ b.classList.add("is-current"); b.disabled = true; b.setAttribute("aria-label", "Current day: " + formatDateHuman(d)); }
+      else if(d > today){ b.disabled = true; }
+      if(state.sessions.some(function(x){ return x.date === d && x.id !== id; })) b.classList.add("has");
+      b.addEventListener("click", function(){ mvDate.value = ""; selectMoveDate(d); });
+      mvStrip.appendChild(b);
+    }
+    mvDate.max = today;
+    mvDate.value = "";
+    paintMoveUI(false);
+    openModal("modalMove");
+  }
+
+  function selectMoveDate(d){
+    _moveTarget = d;
+    paintMoveUI(true);
+  }
+  function paintMoveUI(animate){
+    const diff = dayDiff(_moveBase, _moveTarget);
+    const inStrip = diff >= -3 && diff <= 3 && diff !== 0;
+    mvInd.style.transition = animate ? "" : "none";
+    mvInd.style.setProperty("--i", diff + 3);
+    mvInd.classList.toggle("off", !inStrip);
+    if(!animate){ void mvInd.offsetWidth; mvInd.style.transition = ""; }
+    mvStrip.querySelectorAll(".mv-day").forEach(function(b){
+      b.classList.toggle("is-sel", inStrip && b.dataset.date === _moveTarget);
+    });
+    const valid = _moveTarget && _moveTarget !== _moveBase && _moveTarget <= todayStr();
+    mvSave.disabled = !valid;
+    mvSave.style.opacity = valid ? "" : ".45";
+    mvSave.textContent = valid ? "Move to " + (diff === -1 && _moveBase === todayStr() ? "yesterday" : shortDayLabel(_moveTarget)) : "Move";
+    mvLine.innerHTML = "";
+    if(valid){
+      const a = document.createElement("b"); a.textContent = shortDayLabel(_moveBase);
+      const b = document.createElement("b"); b.textContent = shortDayLabel(_moveTarget);
+      const arrow = document.createElementNS("http://www.w3.org/2000/svg", "svg");
+      arrow.setAttribute("viewBox", "0 0 24 24"); arrow.setAttribute("fill", "none"); arrow.setAttribute("stroke", "currentColor");
+      arrow.setAttribute("stroke-width", "2"); arrow.setAttribute("stroke-linecap", "round"); arrow.setAttribute("stroke-linejoin", "round");
+      arrow.innerHTML = '<path d="M5 12h14M13 6l6 6-6 6"/>';
+      mvLine.appendChild(a); mvLine.appendChild(arrow); mvLine.appendChild(b);
+      const note = document.createElement("span");
+      note.textContent = "· notes and tag go with it";
+      mvLine.appendChild(note);
+    } else {
+      mvLine.textContent = "Pick the day this session belongs to.";
+    }
+  }
+  mvDate.addEventListener("change", function(){
+    if(!mvDate.value) return;
+    _moveTarget = mvDate.value;
+    paintMoveUI(true);
+  });
+  mvSave.addEventListener("click", function(){
+    if(mvSave.disabled) return;
+    const id = _moveId, target = _moveTarget;
+    closeModal();
+    moveSessionAnimated(id, target, false);
   });
 
   /* ======================================================================
@@ -3913,8 +4968,10 @@
 
     const totalSec = state.sessions.filter(function(s){ return s.date === today; })
       .reduce(function(sum, s){ return sum + s.durationSec; }, 0);
-    document.getElementById("timerToday").textContent =
-      totalSec > 0 ? ("Today: " + minutesToLabel(totalSec/60)) : "No sessions yet today";
+    if(!timerPaused && !rewinding){
+      document.getElementById("timerToday").textContent =
+        totalSec > 0 ? ("Today: " + minutesToLabel(totalSec/60)) : "No sessions yet today";
+    }
   }
 
   /* ======================================================================
